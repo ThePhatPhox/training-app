@@ -21,7 +21,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 const STORAGE_KEY = 'training-log-v5';
 const BUGS_KEY = 'training-bugs-v1';
@@ -330,6 +330,89 @@ const VideoLink = ({ name }) => {
 
 const AppBadge = () => <span className="text-green-600 text-xs ml-1">📱</span>;
 
+// Stopwatch Component
+const Stopwatch = ({ dayData, setDayData, expectedMins }) => {
+  const [displayTime, setDisplayTime] = useState(0);
+  const intervalRef = useRef(null);
+  
+  const isRunning = dayData.stopwatchRunning || false;
+  const accumulatedTime = dayData.stopwatchTime || 0;
+  const startTimestamp = dayData.stopwatchStart || null;
+  
+  useEffect(() => {
+    if (isRunning && startTimestamp) {
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+        setDisplayTime(accumulatedTime + elapsed);
+      }, 1000);
+    } else {
+      setDisplayTime(accumulatedTime);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, startTimestamp, accumulatedTime]);
+  
+  const startTimer = () => {
+    setDayData({
+      ...dayData,
+      stopwatchRunning: true,
+      stopwatchStart: Date.now()
+    });
+  };
+  
+  const pauseTimer = () => {
+    const elapsed = startTimestamp ? Math.floor((Date.now() - startTimestamp) / 1000) : 0;
+    setDayData({
+      ...dayData,
+      stopwatchRunning: false,
+      stopwatchTime: accumulatedTime + elapsed,
+      stopwatchStart: null
+    });
+  };
+  
+  const resetTimer = () => {
+    setDayData({
+      ...dayData,
+      stopwatchRunning: false,
+      stopwatchTime: 0,
+      stopwatchStart: null
+    });
+  };
+  
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const actualMins = Math.floor(displayTime / 60);
+  const diffMins = actualMins - expectedMins;
+  const diffText = diffMins === 0 ? 'on target' : diffMins > 0 ? `+${diffMins}m over` : `${Math.abs(diffMins)}m under`;
+  const diffColor = diffMins <= 0 ? 'text-green-600' : 'text-orange-500';
+  
+  return (
+    <div className="mb-3 bg-gray-800 text-white rounded-lg p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-3xl font-mono font-bold">{formatTime(displayTime)}</div>
+          <div className={`text-xs ${diffColor}`}>Expected ~{expectedMins}m • {diffText}</div>
+        </div>
+        <div className="flex gap-2">
+          {!isRunning ? (
+            <button onClick={startTimer} className="px-4 py-2 bg-green-500 rounded-lg font-bold">▶</button>
+          ) : (
+            <button onClick={pauseTimer} className="px-4 py-2 bg-yellow-500 rounded-lg font-bold">⏸</button>
+          )}
+          <button onClick={resetTimer} className="px-3 py-2 bg-gray-600 rounded-lg text-sm">↺</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioMachine, showGlutes, showTGU }) => {
   const [isOpen, setIsOpen] = useState(true);
   if (section.isConditionalGlutes && !showGlutes) return null;
@@ -522,7 +605,7 @@ function TrainingApp() {
     if (newDate >= PROGRAM_START && newDate <= PROGRAM_END) setSelectedDate(formatDate(newDate));
   };
 
-  const resetDay = () => setDayData({ checks: {}, weights: {} });
+  const resetDay = () => setDayData({ checks: {}, weights: {}, stopwatchTime: 0, stopwatchRunning: false, stopwatchStart: null });
 
   const getProgress = () => {
     const checks = dayData.checks || {};
@@ -628,6 +711,8 @@ function TrainingApp() {
             <button onClick={resetDay} className="p-2 text-gray-400">🔄</button>
           </div>
 
+          <Stopwatch dayData={dayData} setDayData={setDayData} expectedMins={totalTime} />
+
           <div className="mb-3 p-2 bg-gray-50 rounded text-xs flex gap-4">
             <span>📹 = YouTube</span>
             <span>📱 = In app</span>
@@ -715,6 +800,10 @@ function TrainingApp() {
           <div className="bg-white rounded-lg p-3 border">
             <h3 className="font-bold text-sm mb-2">📅 Program: Jan 19 - Jul 12, 2026</h3>
             <p className="text-xs text-gray-600">25 weeks total</p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border">
+            <h3 className="font-bold text-sm mb-2">⏱️ Stopwatch</h3>
+            <p className="text-xs text-gray-600">Start/pause to track actual session time. Compares to expected duration. Persists if you close the app.</p>
           </div>
           <div className="bg-white rounded-lg p-3 border">
             <h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3>
