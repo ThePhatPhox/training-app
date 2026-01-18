@@ -2,7 +2,7 @@
   "name": "Rob's Training App",
   "short_name": "Training",
   "description": "24-week training program tracker",
-  "start_url": "./",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#2563eb",
   "theme_color": "#2563eb",
