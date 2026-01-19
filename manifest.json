@@ -1,22 +1,12 @@
 {
-  "name": "Rob's Training App",
+  "name": "Rob's Training",
   "short_name": "Training",
-  "description": "25-week training program tracker with acclimatisation",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#2563eb",
   "theme_color": "#2563eb",
-  "orientation": "portrait",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
