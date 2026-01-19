@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#2563eb">
-  <title>Training App</title>
+  <title>Rob's Training</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    * { -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect } = React;
 
 const STORAGE_KEY = 'training-log-v5';
-const BUGS_KEY = 'training-bugs-v1';
 const PROGRAM_START = new Date('2026-01-19');
 const PROGRAM_END = new Date('2026-07-12');
 
@@ -32,6 +32,9 @@ const videoLinks = {
   "Shoulder dislocates": "https://www.youtube.com/results?search_query=shoulder+dislocates+pass+through+stick+tutorial",
   "Broomstick good morning": "https://www.youtube.com/results?search_query=broomstick+good+morning+stretch+tutorial",
   "Broomstick squat": "https://www.youtube.com/results?search_query=overhead+squat+mobility+broomstick+tutorial",
+  "Broomstick twists": "https://www.youtube.com/results?search_query=broomstick+rotation+thoracic+twist+tutorial",
+  "Broomstick side bends": "https://www.youtube.com/results?search_query=broomstick+side+bend+lateral+stretch",
+  "Broomstick around the world": "https://www.youtube.com/results?search_query=broomstick+around+the+world+shoulder+mobility",
   "Scapula dips": "https://www.youtube.com/watch?v=1AOk_LhHjsA",
   "Scapula press-ups": "https://www.youtube.com/watch?v=y4Wo095zPnc",
   "Scapula pull-downs": "https://www.youtube.com/watch?v=eSgqmaVsKT4",
@@ -97,73 +100,183 @@ const videoLinks = {
   "Hip flexor stretch (right)": "https://www.youtube.com/watch?v=YQmpO9VT2X4",
 };
 
+// Helper functions
 const formatDate = (date) => date.toISOString().split('T')[0];
 const parseDate = (str) => new Date(str + 'T00:00:00');
 const getDayOfWeek = (date) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
-const getWeekNumber = (date) => Math.floor((date - PROGRAM_START) / (1000 * 60 * 60 * 24 * 7)) + 1;
+
+const getWeekNumber = (date) => {
+  const diffTime = date - PROGRAM_START;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7) + 1;
+};
+
+// ACCLIMATISATION: 1 = weeks 1-2, 2 = weeks 3-4, 0 = full (week 5+)
+const getAcclimatisationPhase = (date) => {
+  const weekNum = getWeekNumber(date);
+  if (weekNum <= 2) return 1;
+  if (weekNum <= 4) return 2;
+  return 0;
+};
+
+const getPhaseLabel = (phase) => {
+  if (phase === 1) return "🌱 Phase 1: Just Show Up";
+  if (phase === 2) return "📈 Phase 2: Building Back";
+  return "💪 Full Program";
+};
+
 const getWeekType = (date) => getWeekNumber(date) % 2 === 1 ? 'A' : 'B';
-const getCycleDay = (date) => (Math.floor((date - PROGRAM_START) / (1000 * 60 * 60 * 24)) % 14) + 1;
+
+const getCalisthenicsDay = (date) => {
+  const diffTime = date - PROGRAM_START;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return (diffDays % 14) + 1;
+};
 
 const getSession = (date) => {
-  const day = getDayOfWeek(date);
-  const week = getWeekType(date);
+  const dayOfWeek = getDayOfWeek(date);
+  const weekType = getWeekType(date);
   const scheduleA = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'gymDay1', 'Tue': 'gymDay2', 'Wed': 'homeFull', 'Thu': 'gymRecoveryWeekday', 'Fri': 'homeFull' };
   const scheduleB = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'homeFull', 'Tue': 'gymDay1', 'Wed': 'homeLight', 'Thu': 'gymDay2', 'Fri': 'homeFull' };
-  return week === 'A' ? scheduleA[day] : scheduleB[day];
+  return weekType === 'A' ? scheduleA[dayOfWeek] : scheduleB[dayOfWeek];
 };
 
 const getCustody = (date) => {
-  const day = getDayOfWeek(date);
-  const week = getWeekType(date);
+  const dayOfWeek = getDayOfWeek(date);
+  const weekType = getWeekType(date);
   const custodyA = { 'Sat': 'mum', 'Sun': 'mum', 'Mon': 'mum', 'Tue': 'mum', 'Wed': 'me', 'Thu': 'mum', 'Fri': 'me' };
   const custodyB = { 'Sat': 'me', 'Sun': 'me', 'Mon': 'me', 'Tue': 'mum', 'Wed': 'me', 'Thu': 'mum', 'Fri': 'me' };
-  return (week === 'A' ? custodyA[day] : custodyB[day]) === 'me' ? 'Boys with me' : "Boys at mum's";
+  const who = weekType === 'A' ? custodyA[dayOfWeek] : custodyB[dayOfWeek];
+  return who === 'me' ? 'Boys with me' : "Boys at mum's";
 };
 
 const getCardioMachine = (date) => {
-  const day = getDayOfWeek(date);
-  const week = getWeekType(date);
+  const dayOfWeek = getDayOfWeek(date);
+  const weekType = getWeekType(date);
   const machinesA = { 'Sat': 'Rowing', 'Mon': 'Elliptical', 'Tue': 'Ski-erg', 'Thu': 'Cycling' };
   const machinesB = { 'Sat': 'Ski-erg', 'Tue': 'Rowing', 'Thu': 'Elliptical' };
-  return week === 'A' ? machinesA[day] : machinesB[day];
+  return weekType === 'A' ? machinesA[dayOfWeek] : machinesB[dayOfWeek];
 };
 
-const getShowGlutes = (date) => getSession(date) === 'rest' || getDayOfWeek(date) === 'Wed';
+// Glutes visibility based on acclimatisation phase
+const getShowGlutes = (date) => {
+  const phase = getAcclimatisationPhase(date);
+  const session = getSession(date);
+  const dayOfWeek = getDayOfWeek(date);
+  if (phase === 1) return session === 'rest'; // Sunday only
+  return session === 'rest' || dayOfWeek === 'Wed'; // Phase 2+ : Sun + Wed
+};
+
 const getShowTGU = (date) => {
-  const day = getDayOfWeek(date);
-  const week = getWeekType(date);
+  const dayOfWeek = getDayOfWeek(date);
+  const weekType = getWeekType(date);
   const session = getSession(date);
   if (session === 'gymRecoveryWeekend') return true;
-  if (session === 'homeFull' && day === 'Wed' && week === 'A') return true;
-  if (session === 'homeFull' && day === 'Fri' && week === 'B') return true;
+  if (session === 'homeFull' && dayOfWeek === 'Wed' && weekType === 'A') return true;
+  if (session === 'homeFull' && dayOfWeek === 'Fri' && weekType === 'B') return true;
   return false;
 };
 
+// Calisthenics 14-day rotation (PROTECTED - always full)
 const calisthenicsRotation = {
-  1: { focus: "Chest", exercises: [{ name: "Knee push up", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Bench dip", reps: "3 × 6-12", inApp: true, mins: 3 }]},
-  2: { focus: "Back", exercises: [{ name: "Superman pulses", reps: "3 × 10-20", inApp: true, mins: 3 }, { name: "Towel row", reps: "3 × 8-15", inApp: true, mins: 3 }]},
-  3: { focus: "Legs", exercises: [{ name: "Bench squat", reps: "3 × 8-15", inApp: true, mins: 3 }, { name: "Alternating lunge", reps: "3 × 10-20", inApp: true, mins: 3 }]},
-  4: { focus: "Shoulders", exercises: [{ name: "Incline pike push up", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Pike shoulder taps", reps: "3 × 10-20", inApp: true, mins: 3 }]},
-  5: { focus: "Arms", exercises: [{ name: "Knee tricep extensions", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Banded bicep curls", reps: "3 × 6-12", inApp: true, mins: 3 }]},
-  6: { focus: "Abs/Core", exercises: [{ name: "Elbow plank", reps: "3 × 20-40 sec", inApp: true, mins: 3 }, { name: "Alternating single leg kickouts", reps: "3 × 10-20", inApp: true, mins: 3 }]},
-  7: { focus: "Mobility", exercises: [{ name: "Cat to cow", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Downward facing dog", reps: "3 × 15-30 sec", inApp: true, mins: 3 }]},
-  8: { focus: "Chest", exercises: [{ name: "Push up", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Elevated bench dips", reps: "3 × 6-12", inApp: true, mins: 3 }]},
-  9: { focus: "Back", exercises: [{ name: "Table rows", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Y-wall stretch", reps: "3 × 10-20", inApp: true, mins: 3 }]},
-  10: { focus: "Legs", exercises: [{ name: "Squat", reps: "3 × 8-15", inApp: true, mins: 3 }, { name: "Alternating side lunge", reps: "3 × 10-20", inApp: true, mins: 3 }]},
-  11: { focus: "Shoulders", exercises: [{ name: "Pike push up", reps: "3 × 5-10", inApp: true, mins: 3 }, { name: "Plank to pike walks", reps: "3 × 4-8", inApp: true, mins: 3 }]},
-  12: { focus: "Arms", exercises: [{ name: "Banded bicep curls", reps: "3 × 6-12", inApp: true, mins: 3 }, { name: "Floor tricep extension", reps: "3 × 5-10", inApp: true, mins: 3 }]},
-  13: { focus: "Abs/Core", exercises: [{ name: "Hollow body hold", reps: "3 × 20-45 sec", inApp: true, mins: 3 }, { name: "Superman hold", reps: "3 × 30-60 sec", inApp: true, mins: 3 }]},
-  14: { focus: "Mobility", exercises: [{ name: "Pigeon pose stretch (left)", reps: "3 × 15-30 sec", inApp: true, mins: 2 }, { name: "Pigeon pose stretch (right)", reps: "3 × 15-30 sec", inApp: true, mins: 2 }, { name: "Camel pose", reps: "3 × 20-40 sec", inApp: true, mins: 2 }]}
+  1: { focus: "Chest", exercises: [{ name: "Knee push up", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Bench dip", reps: "3 × 6-12", mins: 4, inApp: true }]},
+  2: { focus: "Back", exercises: [{ name: "Superman pulses", reps: "3 × 10-20", mins: 4, inApp: true }, { name: "Towel row", reps: "3 × 8-15", mins: 4, inApp: true }]},
+  3: { focus: "Legs", exercises: [{ name: "Bench squat", reps: "3 × 8-15", mins: 4, inApp: true }, { name: "Alternating lunge", reps: "3 × 10-20", mins: 4, inApp: true }]},
+  4: { focus: "Shoulders", exercises: [{ name: "Incline pike push up", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Pike shoulder taps", reps: "3 × 10-20", mins: 4, inApp: true }]},
+  5: { focus: "Arms", exercises: [{ name: "Knee tricep extensions", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Banded bicep curls", reps: "3 × 6-12", mins: 4, inApp: true }]},
+  6: { focus: "Abs/Core", exercises: [{ name: "Elbow plank", reps: "3 × 20-40 sec", mins: 3, inApp: true }, { name: "Alternating single leg kickouts", reps: "3 × 10-20", mins: 4, inApp: true }]},
+  7: { focus: "Mobility", exercises: [{ name: "Cat to cow", reps: "3 × 6-12", mins: 3, inApp: true }, { name: "Downward facing dog", reps: "3 × 15-30 sec", mins: 3, inApp: true }]},
+  8: { focus: "Chest", exercises: [{ name: "Push up", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Elevated bench dips", reps: "3 × 6-12", mins: 4, inApp: true }]},
+  9: { focus: "Back", exercises: [{ name: "Table rows", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Y-wall stretch", reps: "3 × 10-20", mins: 3, inApp: true }]},
+  10: { focus: "Legs", exercises: [{ name: "Squat", reps: "3 × 8-15", mins: 4, inApp: true }, { name: "Alternating side lunge", reps: "3 × 10-20", mins: 4, inApp: true }]},
+  11: { focus: "Shoulders", exercises: [{ name: "Pike push up", reps: "3 × 5-10", mins: 4, inApp: true }, { name: "Plank to pike walks", reps: "3 × 4-8", mins: 4, inApp: true }]},
+  12: { focus: "Arms", exercises: [{ name: "Banded bicep curls", reps: "3 × 6-12", mins: 4, inApp: true }, { name: "Floor tricep extension", reps: "3 × 5-10", mins: 4, inApp: true }]},
+  13: { focus: "Abs/Core", exercises: [{ name: "Hollow body hold", reps: "3 × 20-45 sec", mins: 3, inApp: true }, { name: "Superman hold", reps: "3 × 30-60 sec", mins: 3, inApp: true }]},
+  14: { focus: "Mobility", exercises: [{ name: "Pigeon pose stretch (left)", reps: "3 × 15-30 sec", mins: 2, inApp: true }, { name: "Pigeon pose stretch (right)", reps: "3 × 15-30 sec", mins: 2, inApp: true }, { name: "Camel pose", reps: "3 × 20-40 sec", mins: 2, inApp: true }]}
+};
+
+// Strength exercises list for phase modification
+const strengthExercises = ['Leg Press', 'Converging Chest Press', 'Lat Pulldown', 'Barbell Romanian Deadlift', 'Cable Lateral Raise', 'Incline Dumbbell Curl', 'Reverse Pec Deck', 'Chest-Supported Row', 'Incline Dumbbell Press', 'Barbell Hip Thrust', 'Bulgarian Split Squat', 'Barbell Skull Crusher', 'High Incline Shrugs'];
+
+// Modify exercise based on acclimatisation phase
+const modifyExerciseForPhase = (exercise, phase, sectionProtected) => {
+  if (phase === 0 || sectionProtected) return exercise;
+  const modified = { ...exercise };
+  const name = exercise.name;
+  
+  // Strength exercises
+  if (strengthExercises.includes(name)) {
+    if (phase === 1) { modified.reps = "1 × 5 (light)"; modified.mins = 2; }
+    else if (phase === 2) { modified.reps = "1 × 6-8"; modified.mins = 3; }
+    return modified;
+  }
+  
+  // TGU
+  if (name.includes('Turkish get-up')) {
+    if (phase === 1) { modified.reps = "5 reps (bodyweight)"; modified.trackWeight = false; modified.mins = 3; }
+    else if (phase === 2) { modified.reps = "3 reps (light)"; modified.mins = 3; }
+    return modified;
+  }
+  
+  // KB swings
+  if (name === 'KB swings') {
+    if (phase === 1) { modified.reps = "1 × 15 (light)"; modified.mins = 2; }
+    else if (phase === 2) { modified.reps = "2 × 15"; modified.mins = 3; }
+    return modified;
+  }
+  
+  // Isometrics
+  if (name.includes('Wall sit') || name.includes('wall sit')) {
+    if (phase === 1) modified.reps = modified.reps.replace(/4×2min/g, '2×1min').replace(/2×30s/g, '1×20s');
+    else if (phase === 2) modified.reps = modified.reps.replace(/4×2min/g, '2×2min').replace(/2×30s/g, '1×30s');
+    return modified;
+  }
+  
+  // Scapula work
+  if (name.includes('Scapula') && phase === 1) {
+    modified.reps = modified.reps.replace(/2 ×/g, '1 ×');
+    return modified;
+  }
+  
+  // Stretches
+  if (name.includes('stretch') || name.includes('Stretch')) {
+    if (phase === 1) modified.reps = modified.reps.replace(/60 sec/g, '30 sec').replace(/2 min/g, '1 min');
+    else if (phase === 2) modified.reps = modified.reps.replace(/60 sec/g, '45 sec').replace(/2 min/g, '90 sec');
+    return modified;
+  }
+  
+  // Hip machines
+  if (name.includes('Hip abductor') || name.includes('Hip adductor') || name.includes('Cable pull-through')) {
+    if (phase === 1) { modified.reps = "1 × 12 (light)"; modified.mins = 2; }
+    else if (phase === 2) { modified.reps = "2 × 12"; modified.mins = 3; }
+    return modified;
+  }
+  
+  // Active hang in phase 1
+  if (name === 'Active hang' && phase === 1) {
+    modified.reps = "Skip (passive only)";
+    modified.trackTime = false;
+    return modified;
+  }
+  
+  return modified;
 };
 
 const trainingData = {
   gymDay1: {
-    title: "🏋️ GYM Day 1", time: "~85 min",
+    title: "🏋️ GYM Day 1", time: "~85 min", timePhase1: "~55 min", timePhase2: "~65 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
-      { name: "Quick Prep at Home (5 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Arm circles", reps: "20 each way", mins: 1 }]},
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
+      { name: "Quick Prep at Home (5 min)", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 },
+        { name: "Arm circles", reps: "20 each way", mins: 1 }
+      ]},
       { name: "Travel (10 min)", exercises: [{ name: "Walk or jog to gym", reps: "", mins: 10 }] },
-      { name: "Cardio (20 min)", exercises: [{ name: "Skipping", reps: "5 min", mins: 5 }, { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }]},
+      { name: "Cardio (20 min)", exercises: [
+        { name: "Skipping", reps: "5 min", mins: 5 },
+        { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }
+      ]},
       { name: "Strength - 2-2-2 Method", exercises: [
         { name: "Leg Press", reps: "2 × 6-8", trackWeight: true, mins: 4 },
         { name: "Converging Chest Press", reps: "2 × 6-10", trackWeight: true, mins: 4 },
@@ -173,86 +286,182 @@ const trainingData = {
         { name: "Incline Dumbbell Curl", reps: "2 × 8-12", trackWeight: true, mins: 3 },
         { name: "Reverse Pec Deck", reps: "2 × 10-12", trackWeight: true, mins: 3 }
       ]},
-      { name: "Core", exercises: [{ name: "Cable Crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 }, { name: "Cable Woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }]},
+      { name: "Core", exercises: [
+        { name: "Cable Crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 },
+        { name: "Cable Woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }
+      ], protected: true },
       { name: "Travel Home (10 min)", exercises: [{ name: "Walk or jog", reps: "", mins: 10 }] },
-      { name: "Isometrics at Home (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 2 }]},
-      { name: "Close at Home (5 min)", exercises: [{ name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }, { name: "Scapula dips", reps: "1 × 10", mins: 1 }]}
+      { name: "Isometrics at Home (A/B)", exercises: [
+        { name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 },
+        { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }
+      ]},
+      { name: "Close at Home (5 min)", exercises: [
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 },
+        { name: "Scapula dips", reps: "1 × 10", mins: 2 }
+      ]}
     ]
   },
   gymDay2: {
-    title: "🏋️ GYM Day 2", time: "~85 min",
+    title: "🏋️ GYM Day 2", time: "~85 min", timePhase1: "~55 min", timePhase2: "~65 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
-      { name: "Quick Prep at Home (5 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Arm circles", reps: "20 each way", mins: 1 }]},
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
+      { name: "Quick Prep at Home (5 min)", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 },
+        { name: "Arm circles", reps: "20 each way", mins: 1 }
+      ]},
       { name: "Travel (10 min)", exercises: [{ name: "Walk or jog to gym", reps: "", mins: 10 }] },
-      { name: "Cardio (20 min)", exercises: [{ name: "Skipping", reps: "5 min", mins: 5 }, { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }]},
+      { name: "Cardio (20 min)", exercises: [
+        { name: "Skipping", reps: "5 min", mins: 5 },
+        { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }
+      ]},
       { name: "Strength - 2-2-2 Method", exercises: [
         { name: "Chest-Supported Row", reps: "2 × 6-10", trackWeight: true, mins: 4 },
         { name: "Incline Dumbbell Press", reps: "2 × 6-10", trackWeight: true, mins: 4 },
         { name: "Barbell Hip Thrust", reps: "2 × 6-10", trackWeight: true, mins: 4 },
-        { name: "Bulgarian Split Squat", reps: "2 × 6-10", trackWeight: true, mins: 5 },
+        { name: "Bulgarian Split Squat", reps: "2 × 6-10", trackWeight: true, mins: 4 },
         { name: "Cable Lateral Raise", reps: "2 × 10-12", trackWeight: true, mins: 3 },
         { name: "Barbell Skull Crusher", reps: "2 × 8-12", trackWeight: true, mins: 3 },
         { name: "High Incline Shrugs", reps: "2 × 8-12", trackWeight: true, mins: 3 }
       ]},
-      { name: "Core", exercises: [{ name: "Cable Crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 }, { name: "Cable Woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }]},
+      { name: "Core", exercises: [
+        { name: "Cable Crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 },
+        { name: "Cable Woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }
+      ], protected: true },
       { name: "Travel Home (10 min)", exercises: [{ name: "Walk or jog", reps: "", mins: 10 }] },
-      { name: "Isometrics at Home (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 2 }]},
-      { name: "Close at Home (5 min)", exercises: [{ name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }, { name: "Scapula dips", reps: "1 × 10", mins: 1 }]}
+      { name: "Isometrics at Home (A/B)", exercises: [
+        { name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 },
+        { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }
+      ]},
+      { name: "Close at Home (5 min)", exercises: [
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 },
+        { name: "Scapula dips", reps: "1 × 10", mins: 2 }
+      ]}
     ]
   },
   gymRecoveryWeekend: {
-    title: "🏋️ GYM Recovery WEEKEND", time: "~110 min",
+    title: "🏋️ GYM Recovery WEEKEND", time: "~110 min", timePhase1: "~70 min", timePhase2: "~85 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
       { name: "Travel (10 min)", exercises: [{ name: "Walk or jog to gym", reps: "", mins: 10 }] },
-      { name: "Warm-up (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", inApp: true, mins: 5 }]},
-      { name: "Cardio (30 min)", exercises: [{ name: "Incline walk", reps: "15 min Zone 2", mins: 15 }, { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }]},
-      { name: "Scapula Work", exercises: [{ name: "Scapula dips", reps: "2 × 10", mins: 2 }, { name: "Scapula press-ups", reps: "2 × 10", mins: 2 }, { name: "Scapula pull-downs", reps: "2 × 10", mins: 2 }, { name: "Scapula pull-ups", reps: "2 × 5", mins: 2 }]},
-      { name: "Core", exercises: [{ name: "Cable crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 }, { name: "Cable woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }, { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 }, { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 }, { name: "Russian twists", reps: "2 × 10 each", mins: 2 }]},
-      { name: "Glutes/Hips", exercises: [{ name: "Hip abductor machine", reps: "2 × 15", trackWeight: true, mins: 3 }, { name: "Hip adductor machine", reps: "2 × 15", trackWeight: true, mins: 3 }, { name: "Cable pull-throughs", reps: "2 × 12", trackWeight: true, mins: 3 }]},
+      { name: "Warm-up (10 min)", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 },
+        { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick good morning", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick squat", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 },
+        { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 },
+        { name: "Broomstick around the world", reps: "1 × 5 each way", mins: 1 },
+        { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }
+      ]},
+      { name: "Cardio (30 min)", exercises: [
+        { name: "Incline walk", reps: "15 min Zone 2", mins: 15 },
+        { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }
+      ]},
+      { name: "Scapula Work", exercises: [
+        { name: "Scapula dips", reps: "2 × 10", mins: 3 },
+        { name: "Scapula press-ups", reps: "2 × 10", mins: 3 },
+        { name: "Scapula pull-downs", reps: "2 × 10", mins: 3 },
+        { name: "Scapula pull-ups", reps: "2 × 5", mins: 3 }
+      ]},
+      { name: "Core", exercises: [
+        { name: "Cable crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 },
+        { name: "Cable woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 },
+        { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 },
+        { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 },
+        { name: "Russian twists", reps: "2 × 10 each", mins: 2 }
+      ], protected: true },
+      { name: "Glutes/Hips", exercises: [
+        { name: "Hip abductor machine", reps: "2 × 15", trackWeight: true, mins: 3 },
+        { name: "Hip adductor machine", reps: "2 × 15", trackWeight: true, mins: 3 },
+        { name: "Cable pull-throughs", reps: "2 × 12", trackWeight: true, mins: 3 }
+      ]},
       { name: "Isometrics", exercises: [{ name: "Wall sit", reps: "2 × 2 min", mins: 5 }] },
-      { name: "Strength", exercises: [{ name: "Turkish get-up (left)", reps: "1 rep", trackWeight: true, mins: 3 }, { name: "Turkish get-up (right)", reps: "1 rep", trackWeight: true, mins: 3 }]},
-      { name: "Close", exercises: [{ name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]},
-      { name: "Stretch", exercises: [{ name: "Hip flexor stretch (left)", reps: "2 min", mins: 2 }, { name: "Hip flexor stretch (right)", reps: "2 min", mins: 2 }, { name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }]},
+      { name: "Strength", exercises: [
+        { name: "Turkish get-up (left)", reps: "1 rep", trackWeight: true, mins: 3 },
+        { name: "Turkish get-up (right)", reps: "1 rep", trackWeight: true, mins: 3 }
+      ]},
+      { name: "Close", exercises: [
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }
+      ]},
+      { name: "Stretch", exercises: [
+        { name: "Hip flexor stretch (left)", reps: "2 min", mins: 2 },
+        { name: "Hip flexor stretch (right)", reps: "2 min", mins: 2 },
+        { name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }
+      ]},
       { name: "Travel Home (10 min)", exercises: [{ name: "Walk or jog", reps: "", mins: 10 }] }
     ]
   },
   gymRecoveryWeekday: {
-    title: "🏋️ GYM Recovery WEEKDAY", time: "~80 min",
+    title: "🏋️ GYM Recovery WEEKDAY", time: "~80 min", timePhase1: "~55 min", timePhase2: "~65 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
       { name: "Travel (10 min)", exercises: [{ name: "Walk or jog to gym", reps: "", mins: 10 }] },
-      { name: "Warm-up", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }]},
-      { name: "Cardio (25 min)", exercises: [{ name: "Incline walk", reps: "15 min Zone 2", mins: 15 }, { name: "Machine cardio (rotate)", reps: "10 min Zone 2", mins: 10 }]},
-      { name: "Core", exercises: [{ name: "Cable crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 }, { name: "Cable woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }]},
-      { name: "Glutes/Hips", exercises: [{ name: "Hip abductor machine", reps: "2 × 15", trackWeight: true, mins: 3 }, { name: "Hip adductor machine", reps: "2 × 15", trackWeight: true, mins: 3 }]},
+      { name: "Warm-up", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 }
+      ]},
+      { name: "Cardio (25 min)", exercises: [
+        { name: "Incline walk", reps: "15 min Zone 2", mins: 15 },
+        { name: "Machine cardio (rotate)", reps: "10 min Zone 2", mins: 10 }
+      ]},
+      { name: "Core", exercises: [
+        { name: "Cable crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 },
+        { name: "Cable woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }
+      ], protected: true },
+      { name: "Glutes/Hips", exercises: [
+        { name: "Hip abductor machine", reps: "2 × 15", trackWeight: true, mins: 3 },
+        { name: "Hip adductor machine", reps: "2 × 15", trackWeight: true, mins: 3 }
+      ]},
       { name: "Isometrics", exercises: [{ name: "Wall sit", reps: "2 × 2 min", mins: 5 }] },
-      { name: "Close", exercises: [{ name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]},
+      { name: "Close", exercises: [
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }
+      ]},
       { name: "Travel Home (10 min)", exercises: [{ name: "Walk or jog", reps: "", mins: 10 }] }
     ]
   },
   homeFull: {
-    title: "🏠 HOME Full", time: "~70-80 min",
+    title: "🏠 HOME Full", time: "~70-80 min", timePhase1: "~45 min", timePhase2: "~55 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
-      { name: "OPEN (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", inApp: true, mins: 5 }]},
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
+      { name: "OPEN (10 min)", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 },
+        { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick good morning", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick squat", reps: "1 × 10", mins: 1 },
+        { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 },
+        { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 },
+        { name: "Broomstick around the world", reps: "1 × 5 each way", mins: 1 },
+        { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }
+      ]},
       { name: "BUILD - Glutes & Physio (A/B)", isConditionalGlutes: true, exercises: [
-        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 2 },
-        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 2 },
-        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 2 },
-        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 2 },
+        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 3 },
+        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 3 },
+        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 3 },
+        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 3 },
         { name: "Isometric ball extension (left)", reps: "3 × 30 sec", mins: 2 },
         { name: "Isometric ball extension (right)", reps: "3 × 30 sec", mins: 2 },
-        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 2 },
-        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 1 },
-        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 1 },
-        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 1 },
-        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 1 },
+        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 3 },
+        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 2 },
+        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 2 },
+        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 2 },
+        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 2 },
         { name: "DB single leg RDL (left)", reps: "1 × 8", trackWeight: true, mins: 2 },
         { name: "DB single leg RDL (right)", reps: "1 × 8", trackWeight: true, mins: 2 }
       ]},
-      { name: "BUILD - Isometrics (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 2 }]},
+      { name: "BUILD - Isometrics (A/B)", exercises: [
+        { name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 },
+        { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }
+      ]},
       { name: "BUILD - Main", exercises: [
         { name: "KB swings", reps: "2 × 20", trackWeight: true, mins: 4 },
         { name: "Turkish get-up (left)", reps: "1 rep", trackWeight: true, isConditionalTGU: true, mins: 3 },
@@ -260,58 +469,100 @@ const trainingData = {
         { name: "Parallette dips", reps: "2 × 8", mins: 3 },
         { name: "Punch bag", reps: "5 min", mins: 5 }
       ]},
-      { name: "BUILD - Core", exercises: [{ name: "Leg raises", reps: "2 × 10", mins: 2 }, { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 }, { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 }, { name: "Russian twists (KB)", reps: "2 × 10 each", trackWeight: true, mins: 2 }]},
-      { name: "CLOSE - Stretch", exercises: [{ name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]}
+      { name: "BUILD - Core", exercises: [
+        { name: "Leg raises", reps: "2 × 10", mins: 3 },
+        { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 },
+        { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 },
+        { name: "Russian twists (KB)", reps: "2 × 10 each", trackWeight: true, mins: 3 }
+      ], protected: true },
+      { name: "CLOSE - Stretch", exercises: [
+        { name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }
+      ]}
     ]
   },
   homeLight: {
-    title: "🏠 HOME Light", time: "~60 min",
+    title: "🏠 HOME Light", time: "~60 min", timePhase1: "~40 min", timePhase2: "~50 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
-      { name: "OPEN (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Bend mobility flow", reps: "5 min", inApp: true, mins: 5 }]},
-      { name: "MAINTAIN - Glutes & Physio (A/B)", exercises: [
-        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 2 },
-        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 2 },
-        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 2 },
-        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 2 },
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
+      { name: "OPEN (10 min)", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 },
+        { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }
+      ]},
+      { name: "MAINTAIN - Glutes & Physio (A/B)", isConditionalGlutes: true, exercises: [
+        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 3 },
+        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 3 },
+        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 3 },
+        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 3 },
         { name: "Isometric ball extension (left)", reps: "3 × 30 sec", mins: 2 },
         { name: "Isometric ball extension (right)", reps: "3 × 30 sec", mins: 2 },
-        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 2 },
-        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 1 },
-        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 1 },
-        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 1 },
-        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 1 },
+        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 3 },
+        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 2 },
+        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 2 },
+        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 2 },
+        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 2 },
         { name: "DB single leg RDL (left)", reps: "1 × 8", trackWeight: true, mins: 2 },
         { name: "DB single leg RDL (right)", reps: "1 × 8", trackWeight: true, mins: 2 }
       ]},
-      { name: "MAINTAIN - Main", exercises: [{ name: "KB swings", reps: "2 × 20", trackWeight: true, mins: 4 }, { name: "Parallette dips", reps: "2 × 8", mins: 3 }]},
-      { name: "Isometrics (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 2 }]},
-      { name: "CLOSE - Stretch", exercises: [{ name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]}
+      { name: "MAINTAIN - Main", exercises: [
+        { name: "KB swings", reps: "2 × 20", trackWeight: true, mins: 4 },
+        { name: "Parallette dips", reps: "2 × 8", mins: 3 }
+      ]},
+      { name: "Isometrics (A/B)", exercises: [
+        { name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 },
+        { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }
+      ]},
+      { name: "CLOSE - Stretch", exercises: [
+        { name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }
+      ]}
     ]
   },
   rest: {
-    title: "😴 REST Day", time: "~70 min",
+    title: "😴 REST Day", time: "~70 min", timePhase1: "~45 min", timePhase2: "~55 min",
     sections: [
-      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true },
-      { name: "Warm-up", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }]},
-      { name: "Recovery", exercises: [{ name: "Bend mobility flow", reps: "15 min", inApp: true, mins: 15 }] },
-      { name: "Glutes & Physio (A/B)", exercises: [
-        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 2 },
-        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 2 },
-        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 2 },
-        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 2 },
+      { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
+      { name: "Warm-up", exercises: [
+        { name: "Bridges", reps: "1 × 10", mins: 2 },
+        { name: "Inchworms", reps: "1 × 8", mins: 2 }
+      ]},
+      { name: "Recovery", exercises: [{ name: "Bend mobility flow", reps: "15 min", mins: 15, inApp: true }] },
+      { name: "Glutes & Physio (A/B)", isConditionalGlutes: true, exercises: [
+        { name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 3 },
+        { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 3 },
+        { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 3 },
+        { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 3 },
         { name: "Isometric ball extension (left)", reps: "3 × 30 sec", mins: 2 },
         { name: "Isometric ball extension (right)", reps: "3 × 30 sec", mins: 2 },
-        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 2 },
-        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 1 },
-        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 1 },
-        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 1 },
-        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 1 },
+        { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 3 },
+        { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 2 },
+        { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 2 },
+        { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 2 },
+        { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 2 },
         { name: "DB single leg RDL (left)", reps: "1 × 8", trackWeight: true, mins: 2 },
         { name: "DB single leg RDL (right)", reps: "1 × 8", trackWeight: true, mins: 2 }
       ]},
-      { name: "Isometrics (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 2 }]},
-      { name: "CLOSE - Stretch", exercises: [{ name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]}
+      { name: "Isometrics (A/B)", exercises: [
+        { name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 },
+        { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }
+      ]},
+      { name: "CLOSE - Stretch", exercises: [
+        { name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 },
+        { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 },
+        { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }
+      ]}
     ]
   }
 };
@@ -330,99 +581,22 @@ const VideoLink = ({ name }) => {
 
 const AppBadge = () => <span className="text-green-600 text-xs ml-1">📱</span>;
 
-// Stopwatch Component
-const Stopwatch = ({ dayData, setDayData, expectedMins }) => {
-  const [displayTime, setDisplayTime] = useState(0);
-  const intervalRef = useRef(null);
-  
-  const isRunning = dayData.stopwatchRunning || false;
-  const accumulatedTime = dayData.stopwatchTime || 0;
-  const startTimestamp = dayData.stopwatchStart || null;
-  
-  useEffect(() => {
-    if (isRunning && startTimestamp) {
-      intervalRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
-        setDisplayTime(accumulatedTime + elapsed);
-      }, 1000);
-    } else {
-      setDisplayTime(accumulatedTime);
-    }
-    return () => clearInterval(intervalRef.current);
-  }, [isRunning, startTimestamp, accumulatedTime]);
-  
-  const startTimer = () => {
-    setDayData({
-      ...dayData,
-      stopwatchRunning: true,
-      stopwatchStart: Date.now()
-    });
-  };
-  
-  const pauseTimer = () => {
-    const elapsed = startTimestamp ? Math.floor((Date.now() - startTimestamp) / 1000) : 0;
-    setDayData({
-      ...dayData,
-      stopwatchRunning: false,
-      stopwatchTime: accumulatedTime + elapsed,
-      stopwatchStart: null
-    });
-  };
-  
-  const resetTimer = () => {
-    setDayData({
-      ...dayData,
-      stopwatchRunning: false,
-      stopwatchTime: 0,
-      stopwatchStart: null
-    });
-  };
-  
-  const formatTime = (seconds) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-  
-  const actualMins = Math.floor(displayTime / 60);
-  const diffMins = actualMins - expectedMins;
-  const diffText = diffMins === 0 ? 'on target' : diffMins > 0 ? `+${diffMins}m over` : `${Math.abs(diffMins)}m under`;
-  const diffColor = diffMins <= 0 ? 'text-green-600' : 'text-orange-500';
-  
-  return (
-    <div className="mb-3 bg-gray-800 text-white rounded-lg p-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-3xl font-mono font-bold">{formatTime(displayTime)}</div>
-          <div className={`text-xs ${diffColor}`}>Expected ~{expectedMins}m • {diffText}</div>
-        </div>
-        <div className="flex gap-2">
-          {!isRunning ? (
-            <button onClick={startTimer} className="px-4 py-2 bg-green-500 rounded-lg font-bold">▶</button>
-          ) : (
-            <button onClick={pauseTimer} className="px-4 py-2 bg-yellow-500 rounded-lg font-bold">⏸</button>
-          )}
-          <button onClick={resetTimer} className="px-3 py-2 bg-gray-600 rounded-lg text-sm">↺</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioMachine, showGlutes, showTGU }) => {
+const Section = ({ section, sectionIndex, dayData, setDayData, calisthenicsDay, cardioMachine, showGlutes, showTGU, phase }) => {
   const [isOpen, setIsOpen] = useState(true);
+  
   if (section.isConditionalGlutes && !showGlutes) return null;
   
   let exercises = section.exercises;
-  if (section.isCalisthenics && cycleDay) {
-    const calData = calisthenicsRotation[cycleDay];
-    exercises = calData ? calData.exercises : [];
+  if (section.isCalisthenics && calisthenicsDay) {
+    exercises = calisthenicsRotation[calisthenicsDay]?.exercises || [];
   }
   exercises = exercises.filter(ex => !ex.isConditionalTGU || showTGU);
+  
+  // Apply phase modifications (unless protected)
+  if (!section.protected && !section.isCalisthenics) {
+    exercises = exercises.map(ex => modifyExerciseForPhase(ex, phase, false));
+  }
+  
   if (exercises.length === 0 && !section.isCalisthenics) return null;
   
   const checks = dayData.checks || {};
@@ -439,16 +613,19 @@ const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioM
     setDayData({ ...dayData, weights: { ...weights, [key]: value } });
   };
 
-  const sectionTitle = section.isCalisthenics && cycleDay 
-    ? `🏃 Calisthenics Day ${cycleDay}: ${calisthenicsRotation[cycleDay]?.focus}`
+  const sectionTitle = section.isCalisthenics && calisthenicsDay 
+    ? `🏃 Calisthenics Day ${calisthenicsDay}: ${calisthenicsRotation[calisthenicsDay]?.focus}`
     : section.name;
+  const isProtected = section.protected || section.isCalisthenics;
 
   return (
     <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
-      <button onClick={() => setIsOpen(!isOpen)} className={`w-full p-2 flex items-center justify-between text-left text-sm font-medium ${allChecked ? 'bg-green-100 text-green-800' : section.isCalisthenics ? 'bg-purple-50' : 'bg-gray-50'}`}>
+      <button onClick={() => setIsOpen(!isOpen)} className={`w-full p-2 flex items-center justify-between text-left text-sm font-medium ${allChecked ? 'bg-green-100 text-green-800' : isProtected ? 'bg-blue-50 border-l-4 border-blue-400' : 'bg-gray-50'}`}>
         <div className="flex items-center gap-2">
-          {isOpen ? '▼' : '▶'} <span>{sectionTitle}</span>
+          <span>{isOpen ? '▼' : '▶'}</span>
+          <span>{sectionTitle}</span>
           {section.isCalisthenics && <span className="text-green-600 text-xs">📱 in app</span>}
+          {isProtected && !section.isCalisthenics && <span className="text-blue-600 text-xs">✓ full</span>}
         </div>
         {allChecked && <span className="text-green-600">✓</span>}
       </button>
@@ -481,121 +658,48 @@ const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioM
   );
 };
 
-const BugsSection = ({ cycleDay, bugs, setBugs }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [newBug, setNewBug] = useState('');
-  
-  const cycleBugs = bugs[cycleDay] || [];
-  const openBugs = cycleBugs.filter(b => !b.fixed);
-  const fixedBugs = cycleBugs.filter(b => b.fixed);
-  
-  const addBug = () => {
-    if (!newBug.trim()) return;
-    const updated = {
-      ...bugs,
-      [cycleDay]: [...cycleBugs, { id: Date.now(), text: newBug.trim(), fixed: false, dateAdded: new Date().toISOString() }]
-    };
-    setBugs(updated);
-    setNewBug('');
-  };
-  
-  const toggleBug = (bugId) => {
-    const updated = {
-      ...bugs,
-      [cycleDay]: cycleBugs.map(b => b.id === bugId ? { ...b, fixed: !b.fixed } : b)
-    };
-    setBugs(updated);
-  };
-  
-  const deleteBug = (bugId) => {
-    const updated = {
-      ...bugs,
-      [cycleDay]: cycleBugs.filter(b => b.id !== bugId)
-    };
-    setBugs(updated);
-  };
-  
-  return (
-    <div className="mb-3 border-2 border-orange-200 rounded-lg overflow-hidden">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-orange-100 p-2 font-bold text-orange-800 text-sm flex justify-between items-center">
-        <span>🐛 Bugs for Day {cycleDay} ({openBugs.length} open)</span>
-        <span>{isOpen ? '▼' : '▶'}</span>
-      </button>
-      {isOpen && (
-        <div className="p-2 bg-white">
-          <div className="flex gap-2 mb-2">
-            <input type="text" value={newBug} onChange={(e) => setNewBug(e.target.value)} placeholder="Describe bug..." className="flex-1 px-2 py-1 text-sm border rounded" onKeyPress={(e) => e.key === 'Enter' && addBug()} />
-            <button onClick={addBug} className="px-3 py-1 bg-orange-500 text-white rounded text-sm">Add</button>
-          </div>
-          {openBugs.length > 0 && (
-            <div className="mb-2">
-              <div className="text-xs text-gray-500 mb-1">Open:</div>
-              {openBugs.map(bug => (
-                <div key={bug.id} className="flex items-center gap-2 p-2 bg-orange-50 rounded mb-1">
-                  <input type="checkbox" checked={false} onChange={() => toggleBug(bug.id)} className="w-4 h-4" />
-                  <span className="flex-1 text-sm">{bug.text}</span>
-                  <button onClick={() => deleteBug(bug.id)} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {fixedBugs.length > 0 && (
-            <div>
-              <div className="text-xs text-gray-500 mb-1">Fixed:</div>
-              {fixedBugs.map(bug => (
-                <div key={bug.id} className="flex items-center gap-2 p-2 bg-green-50 rounded mb-1">
-                  <input type="checkbox" checked={true} onChange={() => toggleBug(bug.id)} className="w-4 h-4" />
-                  <span className="flex-1 text-sm line-through text-gray-400">{bug.text}</span>
-                  <button onClick={() => deleteBug(bug.id)} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {cycleBugs.length === 0 && <div className="text-xs text-gray-400 text-center py-2">No bugs for this day.</div>}
-          <div className="text-xs text-gray-400 mt-2 text-center">Bugs cycle every 14 days with your routine.</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 function TrainingApp() {
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today < PROGRAM_START ? formatDate(PROGRAM_START) : formatDate(today);
+  });
   const [allData, setAllData] = useState({});
-  const [bugs, setBugs] = useState({});
   const [view, setView] = useState('today');
   const [loading, setLoading] = useState(true);
 
   const currentDate = parseDate(selectedDate);
   const session = getSession(currentDate);
   const sessionData = trainingData[session];
-  const cycleDay = getCycleDay(currentDate);
+  const calisthenicsDay = getCalisthenicsDay(currentDate);
   const weekNum = getWeekNumber(currentDate);
   const weekType = getWeekType(currentDate);
   const custody = getCustody(currentDate);
   const cardioMachine = getCardioMachine(currentDate);
   const showGlutes = getShowGlutes(currentDate);
   const showTGU = getShowTGU(currentDate);
+  const phase = getAcclimatisationPhase(currentDate);
   const dayData = allData[selectedDate] || { checks: {}, weights: {} };
+
+  const getSessionTime = () => {
+    if (phase === 1 && sessionData.timePhase1) return sessionData.timePhase1;
+    if (phase === 2 && sessionData.timePhase2) return sessionData.timePhase2;
+    return sessionData.time;
+  };
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) setAllData(JSON.parse(saved));
-      const savedBugs = localStorage.getItem(BUGS_KEY);
-      if (savedBugs) setBugs(JSON.parse(savedBugs));
     } catch (e) { console.log('No saved data'); }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     if (!loading) {
-      try { 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
-        localStorage.setItem(BUGS_KEY, JSON.stringify(bugs));
-      } catch (e) { console.log('Could not save'); }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); }
+      catch (e) { console.log('Could not save'); }
     }
-  }, [allData, bugs, loading]);
+  }, [allData, loading]);
 
   const setDayData = (newDayData) => setAllData({ ...allData, [selectedDate]: newDayData });
 
@@ -605,73 +709,48 @@ function TrainingApp() {
     if (newDate >= PROGRAM_START && newDate <= PROGRAM_END) setSelectedDate(formatDate(newDate));
   };
 
-  const resetDay = () => setDayData({ checks: {}, weights: {}, stopwatchTime: 0, stopwatchRunning: false, stopwatchStart: null });
+  const resetDay = () => setDayData({ checks: {}, weights: {} });
 
   const getProgress = () => {
     const checks = dayData.checks || {};
     let totalMins = 0;
     let doneMins = 0;
+    
     dailyNonNegotiables.forEach((item, i) => {
       totalMins += item.mins;
       if (checks[`daily-${i}`]) doneMins += item.mins;
     });
+    
     sessionData.sections.forEach((section, si) => {
       if (section.isConditionalGlutes && !showGlutes) return;
+      
       let exercises = section.exercises;
-      if (section.isCalisthenics) exercises = calisthenicsRotation[cycleDay]?.exercises || [];
+      if (section.isCalisthenics) {
+        exercises = calisthenicsRotation[calisthenicsDay]?.exercises || [];
+      }
       exercises = exercises.filter(ex => !ex.isConditionalTGU || showTGU);
+      if (!section.protected && !section.isCalisthenics) {
+        exercises = exercises.map(ex => modifyExerciseForPhase(ex, phase, false));
+      }
+      
       exercises.forEach((ex, ei) => {
         const mins = ex.mins || 2;
         totalMins += mins;
         if (checks[`${si}-${ei}`]) doneMins += mins;
       });
     });
+    
     return totalMins > 0 ? Math.round((doneMins / totalMins) * 100) : 0;
-  };
-
-  const getTotalTime = () => {
-    let totalMins = 0;
-    dailyNonNegotiables.forEach(item => totalMins += item.mins);
-    sessionData.sections.forEach(section => {
-      if (section.isConditionalGlutes && !showGlutes) return;
-      let exercises = section.exercises;
-      if (section.isCalisthenics) exercises = calisthenicsRotation[cycleDay]?.exercises || [];
-      exercises = exercises.filter(ex => !ex.isConditionalTGU || showTGU);
-      exercises.forEach(ex => totalMins += ex.mins || 2);
-    });
-    return totalMins;
   };
 
   const formatDisplayDate = (date) => date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  const getExerciseHistory = (exerciseName) => {
-    const history = [];
-    Object.entries(allData).forEach(([date, data]) => {
-      if (data.weights) {
-        Object.entries(data.weights).forEach(([key, value]) => {
-          if (value) {
-            const sessionType = getSession(parseDate(date));
-            const sessionInfo = trainingData[sessionType];
-            sessionInfo.sections.forEach((section, si) => {
-              section.exercises.forEach((ex, ei) => {
-                if (`${si}-${ei}` === key && ex.name === exerciseName) history.push({ date, weight: value });
-              });
-            });
-          }
-        });
-      }
-    });
-    return history.sort((a, b) => a.date.localeCompare(b.date));
-  };
-
   if (loading) return <div className="p-4 text-center">Loading...</div>;
-
-  const totalTime = getTotalTime();
-  const openBugsCount = (bugs[cycleDay] || []).filter(b => !b.fixed).length;
 
   return (
     <div className="min-h-screen bg-gray-100 pb-20">
-      <div className="bg-blue-600 text-white p-3 sticky top-0 z-10">
+      {/* Header */}
+      <div className="bg-blue-600 text-white p-3 sticky top-0 z-10 safe-top">
         <div className="flex justify-between items-center">
           <div>
             <div className="text-lg font-bold">Week {weekNum} of 25</div>
@@ -679,19 +758,32 @@ function TrainingApp() {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">{getProgress()}%</div>
-            <div className="text-xs opacity-80">~{totalTime} min today</div>
+            <div className="text-xs opacity-80">today</div>
           </div>
         </div>
+        
+        {/* Acclimatisation Phase Banner */}
+        {phase > 0 && (
+          <div className={`mt-2 p-2 rounded-lg text-xs font-medium ${phase === 1 ? 'bg-green-500/30' : 'bg-yellow-500/30'}`}>
+            <div className="flex items-center gap-2">
+              <span>⚡</span>
+              <span>{getPhaseLabel(phase)}</span>
+              <span className="opacity-70">• {phase === 1 ? 'Weeks 1-2' : 'Weeks 3-4'}</span>
+            </div>
+          </div>
+        )}
+        
         <div className="flex items-center justify-between mt-3 bg-blue-500 rounded-lg p-2">
           <button onClick={() => navigateDay(-1)} className="p-1 text-xl">◀</button>
           <div className="text-center">
             <div className="font-bold">{formatDisplayDate(currentDate)}</div>
-            <div className="text-xs opacity-80">{custody} • Day {cycleDay}/14 {openBugsCount > 0 && `• 🐛${openBugsCount}`}</div>
+            <div className="text-xs opacity-80">{custody}</div>
           </div>
           <button onClick={() => navigateDay(1)} className="p-1 text-xl">▶</button>
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="bg-white border-b flex text-xs">
         {[{ id: 'today', icon: '📋', label: 'Today' }, { id: 'calendar', icon: '📅', label: 'Calendar' }, { id: 'progress', icon: '📈', label: 'Progress' }, { id: 'info', icon: 'ℹ️', label: 'Info' }].map(tab => (
           <button key={tab.id} onClick={() => setView(tab.id)} className={`flex-1 p-2 text-center font-medium ${view === tab.id ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
@@ -705,21 +797,20 @@ function TrainingApp() {
           <div className="flex justify-between items-center mb-3">
             <div>
               <h2 className="font-bold">{sessionData.title}</h2>
-              <p className="text-xs text-gray-500">{sessionData.time}</p>
-              <p className="text-xs text-purple-600">Cal Day {cycleDay}: {calisthenicsRotation[cycleDay]?.focus}</p>
+              <p className="text-xs text-gray-500">{getSessionTime()}</p>
+              <p className="text-xs text-purple-600">Cal Day {calisthenicsDay}: {calisthenicsRotation[calisthenicsDay]?.focus}</p>
             </div>
             <button onClick={resetDay} className="p-2 text-gray-400">🔄</button>
           </div>
 
-          <Stopwatch dayData={dayData} setDayData={setDayData} expectedMins={totalTime} />
-
-          <div className="mb-3 p-2 bg-gray-50 rounded text-xs flex gap-4">
+          {/* Legend */}
+          <div className="mb-3 p-2 bg-gray-50 rounded text-xs flex flex-wrap gap-3">
             <span>📹 = YouTube</span>
             <span>📱 = In app</span>
+            <span className="text-blue-600">✓ full = Protected</span>
           </div>
 
-          <BugsSection cycleDay={cycleDay} bugs={bugs} setBugs={setBugs} />
-
+          {/* Non-Negotiables */}
           <div className="mb-3 border-2 border-blue-200 rounded-lg overflow-hidden">
             <div className="bg-blue-100 p-2 font-bold text-blue-800 text-sm">📌 Daily Non-Negotiables</div>
             <div className="p-2 bg-white">
@@ -729,16 +820,16 @@ function TrainingApp() {
                 return (
                   <label key={i} className={`flex items-center gap-2 p-2 rounded ${isChecked ? 'bg-green-50' : ''}`}>
                     <input type="checkbox" checked={isChecked || false} onChange={() => setDayData({ ...dayData, checks: { ...(dayData.checks || {}), [key]: !isChecked } })} className="w-5 h-5 rounded" />
-                    <span className={`text-sm flex-1 ${isChecked ? 'line-through text-gray-400' : ''}`}>{item.name}</span>
-                    <span className="text-xs text-gray-400">{item.mins}m</span>
+                    <span className={`text-sm ${isChecked ? 'line-through text-gray-400' : ''}`}>{item.name}</span>
                   </label>
                 );
               })}
             </div>
           </div>
 
+          {/* Sections */}
           {sessionData.sections.map((section, i) => (
-            <Section key={i} section={section} sectionIndex={i} dayData={dayData} setDayData={setDayData} cycleDay={cycleDay} cardioMachine={cardioMachine} showGlutes={showGlutes} showTGU={showTGU} />
+            <Section key={i} section={section} sectionIndex={i} dayData={dayData} setDayData={setDayData} calisthenicsDay={calisthenicsDay} cardioMachine={cardioMachine} showGlutes={showGlutes} showTGU={showTGU} phase={phase} />
           ))}
         </div>
       ) : view === 'calendar' ? (
@@ -754,12 +845,10 @@ function TrainingApp() {
                 const dateStr = formatDate(current);
                 const hasData = allData[dateStr] && Object.keys(allData[dateStr].checks || {}).length > 0;
                 const isSelected = dateStr === selectedDate;
-                const dayCycle = getCycleDay(current);
-                const hasBugs = (bugs[dayCycle] || []).filter(b => !b.fixed).length > 0;
+                const datePhase = getAcclimatisationPhase(current);
                 days.push(
-                  <button key={dateStr} onClick={() => { setSelectedDate(dateStr); setView('today'); }} className={`p-1 text-center rounded relative ${isSelected ? 'bg-blue-600 text-white' : hasData ? 'bg-green-100 text-green-800' : 'bg-white'}`}>
+                  <button key={dateStr} onClick={() => { setSelectedDate(dateStr); setView('today'); }} className={`p-1 text-center rounded ${isSelected ? 'bg-blue-600 text-white' : hasData ? 'bg-green-100 text-green-800' : datePhase === 1 ? 'bg-green-50' : datePhase === 2 ? 'bg-yellow-50' : 'bg-white'}`}>
                     {current.getDate()}
-                    {hasBugs && <span className="absolute -top-1 -right-1 text-orange-500 text-xs">•</span>}
                   </button>
                 );
                 current.setDate(current.getDate() + 1);
@@ -767,23 +856,41 @@ function TrainingApp() {
               return days;
             })()}
           </div>
-          <div className="mt-4 flex gap-4 text-xs">
+          <div className="mt-4 flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-100 rounded" /> Logged</div>
             <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-600 rounded" /> Selected</div>
-            <div className="flex items-center gap-1"><span className="text-orange-500">•</span> Has bugs</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-50 rounded border" /> Phase 1</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-50 rounded border" /> Phase 2</div>
           </div>
         </div>
       ) : view === 'progress' ? (
         <div className="p-3">
           <h2 className="font-bold mb-3">📈 Weight Progress</h2>
           {['Leg Press', 'Converging Chest Press', 'Lat Pulldown', 'Barbell Romanian Deadlift', 'Chest-Supported Row', 'Incline Dumbbell Press', 'Barbell Hip Thrust', 'Bulgarian Split Squat', 'KB swings', 'Turkish get-up (left)'].map(exercise => {
-            const history = getExerciseHistory(exercise);
+            const history = [];
+            Object.entries(allData).forEach(([date, data]) => {
+              if (data.weights) {
+                Object.entries(data.weights).forEach(([key, value]) => {
+                  if (value) {
+                    const sessionType = getSession(parseDate(date));
+                    const sessionInfo = trainingData[sessionType];
+                    sessionInfo.sections.forEach((section, si) => {
+                      section.exercises.forEach((ex, ei) => {
+                        if (`${si}-${ei}` === key && ex.name === exercise) {
+                          history.push({ date, weight: value });
+                        }
+                      });
+                    });
+                  }
+                });
+              }
+            });
             if (history.length === 0) return null;
             return (
               <div key={exercise} className="bg-white p-3 rounded-lg border mb-2">
                 <h3 className="font-medium text-sm">{exercise}</h3>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {history.slice(-8).map((h, i) => (
+                  {history.sort((a, b) => a.date.localeCompare(b.date)).slice(-8).map((h, i) => (
                     <div key={i} className="text-xs bg-gray-100 px-2 py-1 rounded">
                       <div className="font-bold">{h.weight}kg</div>
                       <div className="text-gray-500">{h.date.slice(5)}</div>
@@ -797,20 +904,35 @@ function TrainingApp() {
         </div>
       ) : (
         <div className="p-3 space-y-3">
+          {/* Acclimatisation Info */}
+          <div className="bg-gradient-to-r from-green-50 to-yellow-50 rounded-lg p-3 border border-green-200">
+            <h3 className="font-bold text-sm mb-2">🌱 4-Week Acclimatisation</h3>
+            <div className="text-xs space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="font-bold text-green-600">Weeks 1-2:</span>
+                <span>Just show up. 1×5 reps strength, TGU bodyweight ×5 each side, glutes Sunday only</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold text-yellow-600">Weeks 3-4:</span>
+                <span>Build back. 1×6-8 reps strength, TGU light ×3, glutes 2×/week</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold text-blue-600">Week 5+:</span>
+                <span>Full program as designed</span>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-green-200 text-xs">
+              <span className="font-medium">Protected (always full):</span> Core & Calisthenics
+            </div>
+          </div>
+
           <div className="bg-white rounded-lg p-3 border">
             <h3 className="font-bold text-sm mb-2">📅 Program: Jan 19 - Jul 12, 2026</h3>
             <p className="text-xs text-gray-600">25 weeks total</p>
           </div>
+          
           <div className="bg-white rounded-lg p-3 border">
-            <h3 className="font-bold text-sm mb-2">⏱️ Stopwatch</h3>
-            <p className="text-xs text-gray-600">Start/pause to track actual session time. Compares to expected duration. Persists if you close the app.</p>
-          </div>
-          <div className="bg-white rounded-lg p-3 border">
-            <h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3>
-            <p className="text-xs text-gray-600">Bugs are linked to cycle day (1-14). Add bugs on any day and they appear again in 2 weeks on the same cycle day for verification.</p>
-          </div>
-          <div className="bg-white rounded-lg p-3 border">
-            <h3 className="font-bold text-sm mb-2">⏱️ Session Times</h3>
+            <h3 className="font-bold text-sm mb-2">⏱️ Session Times (Full Program)</h3>
             <div className="text-xs space-y-1">
               <div className="flex justify-between"><span>GYM Day 1/2</span><span>~85 min</span></div>
               <div className="flex justify-between"><span>GYM Recovery Weekend</span><span>~110 min</span></div>
@@ -820,15 +942,19 @@ function TrainingApp() {
               <div className="flex justify-between"><span>REST</span><span>~70 min</span></div>
             </div>
           </div>
+
           <div className="bg-white rounded-lg p-3 border">
-            <h3 className="font-bold text-sm mb-2">📹 Video Legend</h3>
+            <h3 className="font-bold text-sm mb-2">📹 Legend</h3>
             <p className="text-xs text-gray-600">📹 = YouTube tutorial link</p>
             <p className="text-xs text-gray-600">📱 = Covered in Calisthenics Family or Bend app</p>
+            <p className="text-xs text-blue-600">✓ full = Section protected from scaling</p>
           </div>
+
           <div className="bg-white rounded-lg p-3 border">
             <h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3>
             <p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p>
           </div>
+
           <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
             <h3 className="font-bold text-sm mb-2 text-yellow-800">Remember</h3>
             <ul className="text-xs text-yellow-700 space-y-1">
@@ -843,7 +969,12 @@ function TrainingApp() {
   );
 }
 
-ReactDOM.render(<TrainingApp />, document.getElementById('root'));
+ReactDOM.createRoot(document.getElementById('root')).render(<TrainingApp />);
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => console.log('SW registered'));
+    }
   </script>
 </body>
 </html>
