@@ -149,10 +149,10 @@ const modifyExerciseForPhase = (ex, phase) => {
   if (strengthExercises.includes(ex.name)) { m.reps = phase === 1 ? "1 × 3 (very light)" : "1 × 6-8"; m.mins = phase === 1 ? 1 : 3; return m; }
   if (ex.name.includes('Turkish get-up')) { m.reps = phase === 1 ? "3 reps (bodyweight)" : "3 reps (light)"; m.trackWeight = phase !== 1; m.mins = phase === 1 ? 2 : 3; return m; }
   if (ex.name === 'KB swings') { m.reps = phase === 1 ? "1 × 10 (light)" : "2 × 15"; m.mins = phase === 1 ? 1 : 3; return m; }
-  if (ex.name === 'Wall sit') { m.reps = phase === 1 ? "2 × 30 sec" : "2 × 2 min"; m.mins = phase === 1 ? 1 : 4; return m; }
-  if (ex.name === 'SL wall sit') { m.reps = phase === 1 ? "1 × 10s each" : "1 × 30s each"; m.mins = phase === 1 ? 1 : 1; return m; }
-  if (ex.name === 'Handgrip') { m.reps = phase === 1 ? "2 × 30 sec each" : "4 × 2 min each"; m.mins = phase === 1 ? 2 : 8; return m; }
-  if (ex.name === 'Plank') { m.reps = phase === 1 ? "1 × 20s" : "1 × 45s"; m.mins = phase === 1 ? 1 : 1; return m; }
+  if (ex.name === 'Wall sit') { m.reps = phase === 1 ? "1 × 1 min" : phase === 2 ? "2 × 1 min" : "2 × 2 min"; m.mins = phase === 1 ? 1 : phase === 2 ? 2 : 4; return m; }
+  if (ex.name === 'SL wall sit') { m.reps = phase === 1 ? "1 × 30s each" : phase === 2 ? "1 × 45s each" : "2 × 30s each"; m.mins = 1; return m; }
+  if (ex.name === 'Handgrip') { m.reps = phase === 1 ? "1 × 1 min each" : phase === 2 ? "2 × 1 min each" : "4 × 2 min each"; m.mins = phase === 1 ? 2 : phase === 2 ? 4 : 8; return m; }
+  if (ex.name === 'Plank') { m.reps = phase === 1 ? "1 × 20s" : phase === 2 ? "1 × 30s" : "1 × 45s"; m.mins = 1; return m; }
   if (ex.name.includes('Scapula') && phase === 1) { m.reps = m.reps.replace(/2 ×/g, '1 ×'); return m; }
   if (ex.name.includes('stretch') || ex.name.includes('Stretch')) { m.reps = phase === 1 ? m.reps.replace(/60 sec/g, '20 sec').replace(/2 min/g, '30 sec') : m.reps.replace(/60 sec/g, '45 sec').replace(/2 min/g, '90 sec'); m.mins = phase === 1 ? 1 : 1; return m; }
   if (ex.name.includes('Hip abductor') || ex.name.includes('Hip adductor') || ex.name.includes('Cable pull-through')) { m.reps = phase === 1 ? "1 × 12 (light)" : "2 × 12"; m.mins = phase === 1 ? 1 : 3; return m; }
@@ -480,7 +480,7 @@ function TrainingApp() {
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3><p className="text-xs text-gray-600">Bugs linked to cycle day (1-14). Same bugs appear 2 weeks later. Mark fixed, then delete.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3><p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p></div>
           <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200"><h3 className="font-bold text-sm mb-2 text-yellow-800">Remember</h3><ul className="text-xs text-yellow-700 space-y-1"><li>✓ Good enough for now</li><li>✓ Stay the course</li><li>✓ Imperfection is not the enemy, distraction is</li></ul></div>
-          <div className="text-center text-xs text-gray-400 mt-4">v15 • Jan 26, 2026</div>
+          <div className="text-center text-xs text-gray-400 mt-4">v16 • Jan 26, 2026</div>
         </div>
       )}
     </div>
