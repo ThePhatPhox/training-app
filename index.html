@@ -361,15 +361,9 @@ function TrainingApp() {
 
   const getSessionTime = () => phase === 1 && sessionData.timePhase1 ? sessionData.timePhase1 : phase === 2 && sessionData.timePhase2 ? sessionData.timePhase2 : sessionData.time;
   const getExpectedMins = () => {
-    let total = dailyNonNegotiables.reduce((s, i) => s + i.mins, 0);
-    sessionData.sections.forEach(sec => {
-      if (sec.isConditionalGlutes && !showGlutes) return;
-      let exs = sec.isCalisthenics ? (calisthenicsRotation[cycleDay]?.exercises || []) : sec.exercises;
-      exs = exs.filter(ex => !ex.isConditionalTGU || showTGU);
-      if (!sec.protected && !sec.isCalisthenics) exs = exs.map(ex => modifyExerciseForPhase(ex, phase));
-      exs.forEach(ex => { total += ex.mins || 2; });
-    });
-    return total;
+    const timeStr = getSessionTime();
+    const match = timeStr.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 60;
   };
 
   useEffect(() => { try { const s = localStorage.getItem(STORAGE_KEY); if (s) setAllData(JSON.parse(s)); const b = localStorage.getItem(BUGS_KEY); if (b) setBugs(JSON.parse(b)); } catch (e) {} setLoading(false); }, []);
@@ -476,7 +470,7 @@ function TrainingApp() {
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3><p className="text-xs text-gray-600">Bugs linked to cycle day (1-14). Same bugs appear 2 weeks later. Mark fixed, then delete.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3><p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p></div>
           <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200"><h3 className="font-bold text-sm mb-2 text-yellow-800">Remember</h3><ul className="text-xs text-yellow-700 space-y-1"><li>✓ Good enough for now</li><li>✓ Stay the course</li><li>✓ Imperfection is not the enemy, distraction is</li></ul></div>
-          <div className="text-center text-xs text-gray-400 mt-4">v12 • Jan 26, 2026</div>
+          <div className="text-center text-xs text-gray-400 mt-4">v13 • Jan 26, 2026</div>
         </div>
       )}
     </div>
