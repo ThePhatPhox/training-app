@@ -25,8 +25,8 @@ const { useState, useEffect, useRef } = React;
 
 const STORAGE_KEY = 'training-log-v5';
 const BUGS_KEY = 'training-bugs-v1';
-const PROGRAM_START = new Date('2026-01-19');
-const PROGRAM_END = new Date('2026-07-12');
+const PROGRAM_START = new Date('2026-01-26');
+const PROGRAM_END = new Date('2026-07-21');
 
 const videoLinks = {
   "Shoulder dislocates": "https://www.youtube.com/results?search_query=shoulder+dislocates+pass+through+stick+tutorial",
@@ -102,7 +102,7 @@ const getWeekNumber = (date) => { const diff = date - PROGRAM_START; return Math
 const getCycleDay = (date) => { const diff = date - PROGRAM_START; return (Math.floor(diff / (1000 * 60 * 60 * 24)) % 14) + 1; };
 const getAcclimatisationPhase = (date) => { const w = getWeekNumber(date); return w <= 2 ? 1 : w <= 4 ? 2 : 0; };
 const getPhaseLabel = (p) => p === 1 ? "🌱 Phase 1: Just Show Up" : p === 2 ? "📈 Phase 2: Building Back" : "💪 Full Program";
-const getWeekType = (date) => getWeekNumber(date) % 2 === 1 ? 'A' : 'B';
+const getWeekType = (date) => getWeekNumber(date) % 2 === 1 ? 'B' : 'A';
 const getSession = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
   const A = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'gymDay1', 'Tue': 'gymDay2', 'Wed': 'homeFull', 'Thu': 'gymRecoveryWeekday', 'Fri': 'homeFull' };
@@ -111,9 +111,9 @@ const getSession = (date) => {
 };
 const getCustody = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
-  const A = { 'Sat': 'mum', 'Sun': 'mum', 'Mon': 'mum', 'Tue': 'mum', 'Wed': 'me', 'Thu': 'mum', 'Fri': 'me' };
-  const B = { 'Sat': 'me', 'Sun': 'me', 'Mon': 'me', 'Tue': 'mum', 'Wed': 'me', 'Thu': 'mum', 'Fri': 'me' };
-  return (w === 'A' ? A[d] : B[d]) === 'me' ? 'Boys with me' : "Boys at mum's";
+  const A = { 'Mon': 'mum', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'dad', 'Sun': 'dad' };
+  const B = { 'Mon': 'dad', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'mum', 'Sun': 'mum' };
+  return (w === 'A' ? A[d] : B[d]) === 'dad' ? 'Boys with dad' : "Boys at mum's";
 };
 const getCardioMachine = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
@@ -153,7 +153,7 @@ const modifyExerciseForPhase = (ex, phase) => {
   if (ex.name.includes('Scapula') && phase === 1) { m.reps = m.reps.replace(/2 ×/g, '1 ×'); return m; }
   if (ex.name.includes('stretch') || ex.name.includes('Stretch')) { m.reps = phase === 1 ? m.reps.replace(/60 sec/g, '30 sec').replace(/2 min/g, '1 min') : m.reps.replace(/60 sec/g, '45 sec').replace(/2 min/g, '90 sec'); return m; }
   if (ex.name.includes('Hip abductor') || ex.name.includes('Hip adductor') || ex.name.includes('Cable pull-through')) { m.reps = phase === 1 ? "1 × 12 (light)" : "2 × 12"; m.mins = phase === 1 ? 2 : 3; return m; }
-  if (ex.name === 'Active hang' && phase === 1) { m.reps = "Skip (passive only)"; m.trackTime = false; return m; }
+  if (ex.name === 'Active hang' && phase === 1) { m.reps = "1 × 15 sec"; m.mins = 1; return m; }
   return m;
 };
 
@@ -389,7 +389,7 @@ function TrainingApp() {
     <div className="min-h-screen bg-gray-100 pb-20">
       <div className="bg-blue-600 text-white p-3 sticky top-0 z-10 safe-top">
         <div className="flex justify-between items-center">
-          <div><div className="text-lg font-bold">Week {weekNum} of 25</div><div className="text-xs opacity-80">Week {weekType} • Day {cycleDay}/14 {totalBugsOpen > 0 && `• 🐛${totalBugsOpen}`}</div></div>
+          <div><div className="text-lg font-bold">Week {weekNum} of 26</div><div className="text-xs opacity-80">Week {weekType} • Day {cycleDay}/14 {totalBugsOpen > 0 && `• 🐛${totalBugsOpen}`}</div></div>
           <div className="text-right"><div className="text-2xl font-bold">{getProgress()}%</div><div className="text-xs opacity-80">today</div></div>
         </div>
         {phase > 0 && <div className={`mt-2 p-2 rounded-lg text-xs font-medium ${phase === 1 ? 'bg-green-500/30' : 'bg-yellow-500/30'}`}><span>⚡ {getPhaseLabel(phase)} • {phase === 1 ? 'Weeks 1-2' : 'Weeks 3-4'}</span></div>}
@@ -458,7 +458,7 @@ function TrainingApp() {
       ) : (
         <div className="p-3 space-y-3">
           <div className="bg-gradient-to-r from-green-50 to-yellow-50 rounded-lg p-3 border border-green-200"><h3 className="font-bold text-sm mb-2">🌱 4-Week Acclimatisation</h3><div className="text-xs space-y-1"><div><span className="font-bold text-green-600">Weeks 1-2:</span> 1×5 reps, TGU bodyweight ×5, glutes Sunday only</div><div><span className="font-bold text-yellow-600">Weeks 3-4:</span> 1×6-8 reps, TGU light ×3, glutes 2×/week</div><div><span className="font-bold text-blue-600">Week 5+:</span> Full program</div></div><div className="mt-2 pt-2 border-t border-green-200 text-xs"><span className="font-medium">Protected:</span> Core & Calisthenics</div></div>
-          <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">📅 Program: Jan 19 - Jul 12, 2026</h3><p className="text-xs text-gray-600">25 weeks • Target: 85kg</p></div>
+          <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">📅 Program: Jan 26 - Jul 21, 2026</h3><p className="text-xs text-gray-600">26 weeks • Target: 85kg</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">⏱️ Stopwatch</h3><p className="text-xs text-gray-600">Track actual time. Start/pause for split sessions. Compares to expected.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3><p className="text-xs text-gray-600">Bugs linked to cycle day (1-14). Same bugs appear 2 weeks later. Mark fixed, then delete.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3><p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p></div>
