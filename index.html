@@ -102,23 +102,23 @@ const getWeekNumber = (date) => { const diff = date - PROGRAM_START; return Math
 const getCycleDay = (date) => { const diff = date - PROGRAM_START; return (Math.floor(diff / (1000 * 60 * 60 * 24)) % 14) + 1; };
 const getAcclimatisationPhase = (date) => { const w = getWeekNumber(date); return w <= 2 ? 1 : w <= 4 ? 2 : 0; };
 const getPhaseLabel = (p) => p === 1 ? "🌱 Phase 1: Just Show Up" : p === 2 ? "📈 Phase 2: Building Back" : "💪 Full Program";
-const getWeekType = (date) => getWeekNumber(date) % 2 === 1 ? 'B' : 'A';
+const getWeekType = (date) => getWeekNumber(date) % 2 === 1 ? 'A' : 'B';
 const getSession = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
-  const A = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'gymDay1', 'Tue': 'gymDay2', 'Wed': 'homeFull', 'Thu': 'gymRecoveryWeekday', 'Fri': 'homeFull' };
-  const B = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'homeFull', 'Tue': 'gymDay1', 'Wed': 'homeLight', 'Thu': 'gymDay2', 'Fri': 'homeFull' };
+  const B = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'gymDay1', 'Tue': 'gymDay2', 'Wed': 'homeFull', 'Thu': 'gymRecoveryWeekday', 'Fri': 'homeFull' };
+  const A = { 'Sat': 'gymRecoveryWeekend', 'Sun': 'rest', 'Mon': 'homeFull', 'Tue': 'gymDay1', 'Wed': 'homeLight', 'Thu': 'gymDay2', 'Fri': 'homeFull' };
   return w === 'A' ? A[d] : B[d];
 };
 const getCustody = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
-  const A = { 'Mon': 'mum', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'dad', 'Sun': 'dad' };
-  const B = { 'Mon': 'dad', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'mum', 'Sun': 'mum' };
+  const B = { 'Mon': 'mum', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'dad', 'Sun': 'dad' };
+  const A = { 'Mon': 'dad', 'Tue': 'mum', 'Wed': 'dad', 'Thu': 'mum', 'Fri': 'dad', 'Sat': 'mum', 'Sun': 'mum' };
   return (w === 'A' ? A[d] : B[d]) === 'dad' ? 'Boys with dad' : "Boys at mum's";
 };
 const getCardioMachine = (date) => {
   const d = getDayOfWeek(date), w = getWeekType(date);
-  const A = { 'Sat': 'Rowing', 'Mon': 'Elliptical', 'Tue': 'Ski-erg', 'Thu': 'Cycling' };
-  const B = { 'Sat': 'Ski-erg', 'Tue': 'Rowing', 'Thu': 'Elliptical' };
+  const B = { 'Sat': 'Rowing', 'Mon': 'Elliptical', 'Tue': 'Ski-erg', 'Thu': 'Cycling' };
+  const A = { 'Sat': 'Ski-erg', 'Tue': 'Rowing', 'Thu': 'Elliptical' };
   return w === 'A' ? A[d] : B[d];
 };
 const getShowGlutes = (date) => { const p = getAcclimatisationPhase(date), s = getSession(date), d = getDayOfWeek(date); return p === 1 ? s === 'rest' : s === 'rest' || d === 'Wed'; };
@@ -300,18 +300,31 @@ const BugsSection = ({ cycleDay, bugs, setBugs }) => {
   );
 };
 
-const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioMachine, showGlutes, showTGU, phase }) => {
+const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioMachine, showGlutes, showTGU, phase, weekType }) => {
   const [isOpen, setIsOpen] = useState(true);
   if (section.isConditionalGlutes && !showGlutes) return null;
   let exercises = section.isCalisthenics ? (calisthenicsRotation[cycleDay]?.exercises || []) : section.exercises;
   exercises = exercises.filter(ex => !ex.isConditionalTGU || showTGU);
   if (!section.protected && !section.isCalisthenics) exercises = exercises.map(ex => modifyExerciseForPhase(ex, phase));
+  // Handle isometrics A/B based on week type
+  exercises = exercises.map(ex => {
+    if (ex.name.includes(' / B: ')) {
+      const [nameA, nameB] = ex.name.split(' / B: ');
+      const [repsA, repsB] = ex.reps.split(' / ');
+      const cleanNameA = nameA.replace('A: ', '');
+      const cleanNameB = nameB;
+      return weekType === 'A' 
+        ? { ...ex, name: cleanNameA, reps: repsA }
+        : { ...ex, name: cleanNameB, reps: repsB };
+    }
+    return ex;
+  });
   if (exercises.length === 0 && !section.isCalisthenics) return null;
   const checks = dayData.checks || {}, weights = dayData.weights || {};
   const allChecked = exercises.length > 0 && exercises.every((_, i) => checks[`${sectionIndex}-${i}`]);
   const toggleCheck = (i) => setDayData({ ...dayData, checks: { ...checks, [`${sectionIndex}-${i}`]: !checks[`${sectionIndex}-${i}`] } });
   const updateWeight = (i, v) => setDayData({ ...dayData, weights: { ...weights, [`${sectionIndex}-${i}`]: v } });
-  const sectionTitle = section.isCalisthenics ? `🏃 Cal Day ${cycleDay}: ${calisthenicsRotation[cycleDay]?.focus}` : section.name;
+  const sectionTitle = section.isCalisthenics ? `🏃 Cal Day ${cycleDay}: ${calisthenicsRotation[cycleDay]?.focus}` : section.name.replace('(A/B)', `(${weekType})`);
   const isProtected = section.protected || section.isCalisthenics;
 
   return (
@@ -422,7 +435,7 @@ function TrainingApp() {
               return (<label key={i} className={`flex items-center gap-2 p-2 rounded ${isChecked ? 'bg-green-50' : ''}`}><input type="checkbox" checked={isChecked || false} onChange={() => setDayData({ ...dayData, checks: { ...(dayData.checks || {}), [key]: !isChecked } })} className="w-5 h-5 rounded" /><span className={`text-sm ${isChecked ? 'line-through text-gray-400' : ''}`}>{item.name}</span><span className="text-xs text-gray-400 ml-auto">{item.mins}m</span></label>);
             })}</div>
           </div>
-          {sessionData.sections.map((sec, i) => <Section key={i} section={sec} sectionIndex={i} dayData={dayData} setDayData={setDayData} cycleDay={cycleDay} cardioMachine={cardioMachine} showGlutes={showGlutes} showTGU={showTGU} phase={phase} />)}
+          {sessionData.sections.map((sec, i) => <Section key={i} section={sec} sectionIndex={i} dayData={dayData} setDayData={setDayData} cycleDay={cycleDay} cardioMachine={cardioMachine} showGlutes={showGlutes} showTGU={showTGU} phase={phase} weekType={weekType} />)}
         </div>
       ) : view === 'calendar' ? (
         <div className="p-3">
@@ -463,7 +476,7 @@ function TrainingApp() {
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3><p className="text-xs text-gray-600">Bugs linked to cycle day (1-14). Same bugs appear 2 weeks later. Mark fixed, then delete.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3><p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p></div>
           <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200"><h3 className="font-bold text-sm mb-2 text-yellow-800">Remember</h3><ul className="text-xs text-yellow-700 space-y-1"><li>✓ Good enough for now</li><li>✓ Stay the course</li><li>✓ Imperfection is not the enemy, distraction is</li></ul></div>
-          <div className="text-center text-xs text-gray-400 mt-4">v10 • Jan 26, 2026</div>
+          <div className="text-center text-xs text-gray-400 mt-4">v12 • Jan 26, 2026</div>
         </div>
       )}
     </div>
