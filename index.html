@@ -25,6 +25,7 @@ const { useState, useEffect, useRef } = React;
 
 const STORAGE_KEY = 'training-log-v5';
 const BUGS_KEY = 'training-bugs-v1';
+const UPDATES_KEY = 'training-updates-v1';
 const PROGRAM_START = new Date('2026-01-26');
 const PROGRAM_END = new Date('2026-07-21');
 
@@ -35,6 +36,7 @@ const videoLinks = {
   "Broomstick twists": "https://www.youtube.com/results?search_query=broomstick+rotation+thoracic+twist+tutorial",
   "Broomstick side bends": "https://www.youtube.com/results?search_query=broomstick+side+bend+lateral+stretch",
   "Broomstick around the world": "https://www.youtube.com/results?search_query=broomstick+around+the+world+shoulder+mobility",
+  "Arm twists": "https://www.youtube.com/results?search_query=arm+circles+warm+up+exercise",
   "Scapula dips": "https://www.youtube.com/watch?v=1AOk_LhHjsA",
   "Scapula press-ups": "https://www.youtube.com/watch?v=y4Wo095zPnc",
   "Scapula pull-downs": "https://www.youtube.com/watch?v=eSgqmaVsKT4",
@@ -57,6 +59,7 @@ const videoLinks = {
   "Cable Woodchops": "https://www.youtube.com/watch?v=pAplQXk3dkU",
   "Cable woodchops": "https://www.youtube.com/watch?v=pAplQXk3dkU",
   "Leg raises": "https://www.youtube.com/watch?v=JB2oyawG9KI",
+  "Hanging leg raises": "https://www.youtube.com/watch?v=hdng3Nm1x_E",
   "Side plank (left)": "https://www.youtube.com/watch?v=K2VljzCC16g",
   "Side plank (right)": "https://www.youtube.com/watch?v=K2VljzCC16g",
   "Russian twists": "https://www.youtube.com/watch?v=wkD8rjkodUI",
@@ -158,7 +161,7 @@ const modifyExerciseForPhase = (ex, phase) => {
   if (ex.name.includes('Hip abductor') || ex.name.includes('Hip adductor') || ex.name.includes('Cable pull-through')) { m.reps = phase === 1 ? "1 × 12 (light)" : "2 × 12"; m.mins = phase === 1 ? 1 : 3; return m; }
   if (ex.name === 'Active hang') { m.reps = phase === 1 ? "1 × 10 sec" : "1 × max"; m.trackTime = phase !== 1; m.mins = 1; return m; }
   if (ex.name === 'Passive hang') { m.reps = phase === 1 ? "1 × 15 sec" : "1 × 20 sec"; m.mins = 1; return m; }
-  if (ex.name.includes('Cable crunch') || ex.name.includes('Cable woodchop') || ex.name.includes('Leg raises') || ex.name.includes('Side plank') || ex.name.includes('Russian twist')) { m.reps = phase === 1 ? m.reps.replace(/2 ×/g, '1 ×') : m.reps; m.mins = phase === 1 ? 1 : 2; return m; }
+  if (ex.name.includes('Cable crunch') || ex.name.includes('Cable woodchop') || ex.name.includes('Leg raises') || ex.name.includes('Hanging leg raises') || ex.name.includes('Side plank') || ex.name.includes('Russian twist')) { m.reps = phase === 1 ? m.reps.replace(/2 ×/g, '1 ×') : m.reps; m.mins = phase === 1 ? 1 : 2; return m; }
   if (ex.name === 'Skipping') { m.reps = phase === 1 ? "3 min" : "5 min"; m.mins = phase === 1 ? 3 : 5; return m; }
   if (ex.name.includes('Machine cardio') || ex.name === 'Rowing' || ex.name === 'Elliptical' || ex.name === 'Ski-erg' || ex.name === 'Cycling') { m.reps = phase === 1 ? "10 min Zone 2" : "15 min Zone 2"; m.mins = phase === 1 ? 10 : 15; return m; }
   return m;
@@ -190,7 +193,7 @@ const trainingData = {
   gymRecoveryWeekend: { title: "🏋️ GYM Recovery WEEKEND", time: "~145 min", timePhase1: "~80 min", timePhase2: "~120 min", sections: [
     { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
     { name: "Travel (10 min)", exercises: [{ name: "Walk or jog to gym", reps: "", mins: 10 }] },
-    { name: "Warm-up (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick around the world", reps: "1 × 5 each", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }]},
+    { name: "Warm-up (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick around the world", reps: "1 × 5 each", mins: 1 }, { name: "Arm twists", reps: "1 × 10 each way", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }]},
     { name: "Cardio (30 min)", exercises: [{ name: "Incline walk", reps: "15 min Zone 2", mins: 15 }, { name: "Machine cardio (rotate)", reps: "15 min Zone 2", mins: 15 }]},
     { name: "Scapula Work", exercises: [{ name: "Scapula dips", reps: "2 × 10", mins: 3 }, { name: "Scapula press-ups", reps: "2 × 10", mins: 3 }, { name: "Scapula pull-downs", reps: "2 × 10", mins: 3 }, { name: "Scapula pull-ups", reps: "2 × 5", mins: 3 }]},
     { name: "Core", exercises: [{ name: "Cable crunches", reps: "2 × 12-15", trackWeight: true, mins: 3 }, { name: "Cable woodchops", reps: "2 × 10 each", trackWeight: true, mins: 3 }, { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 }, { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 }, { name: "Russian twists", reps: "2 × 10 each", mins: 2 }], protected: true },
@@ -214,11 +217,11 @@ const trainingData = {
   ]},
   homeFull: { title: "🏠 HOME Full", time: "~115 min", timePhase1: "~55 min", timePhase2: "~90 min", sections: [
     { name: "Calisthenics (10 min)", exercises: [], isCalisthenics: true, protected: true },
-    { name: "OPEN (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick around the world", reps: "1 × 5 each", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }]},
+    { name: "OPEN (10 min)", exercises: [{ name: "Bridges", reps: "1 × 10", mins: 2 }, { name: "Inchworms", reps: "1 × 8", mins: 2 }, { name: "Shoulder dislocates", reps: "1 × 10", mins: 1 }, { name: "Broomstick good morning", reps: "1 × 10", mins: 1 }, { name: "Broomstick squat", reps: "1 × 10", mins: 1 }, { name: "Broomstick twists", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick side bends", reps: "1 × 10 each", mins: 1 }, { name: "Broomstick around the world", reps: "1 × 5 each", mins: 1 }, { name: "Arm twists", reps: "1 × 10 each way", mins: 1 }, { name: "Bend mobility flow", reps: "5 min", mins: 5, inApp: true }]},
     { name: "Glutes & Physio (A/B)", isConditionalGlutes: true, exercises: [{ name: "A: Clamshells / B: Banded walks", reps: "1×15 ea / 1×20", mins: 3 }, { name: "A: Fire hydrants / B: SL glute bridge", reps: "1×15 ea / 1×10 ea", mins: 3 }, { name: "A: Glute bridges / B: Donkey kicks", reps: "1×15 / 1×15 ea", mins: 3 }, { name: "Sidestep miniband", reps: "2 × 20 steps", mins: 3 }, { name: "Isometric ball extension (left)", reps: "3 × 30 sec", mins: 2 }, { name: "Isometric ball extension (right)", reps: "3 × 30 sec", mins: 2 }, { name: "Swiss ball leg curl (both)", reps: "2 × 10", mins: 3 }, { name: "Swiss ball leg curl (left)", reps: "1 × 8", mins: 2 }, { name: "Swiss ball leg curl (right)", reps: "1 × 8", mins: 2 }, { name: "Single leg hip thrust (left)", reps: "1 × 10", mins: 2 }, { name: "Single leg hip thrust (right)", reps: "1 × 10", mins: 2 }, { name: "DB single leg RDL (left)", reps: "1 × 8", trackWeight: true, mins: 2 }, { name: "DB single leg RDL (right)", reps: "1 × 8", trackWeight: true, mins: 2 }]},
     { name: "Isometrics (A/B)", exercises: [{ name: "A: Wall sit / B: Handgrip", reps: "4×2min / 4×2min ea", mins: 9 }, { name: "A: SL wall sit / B: Plank", reps: "2×30s ea / 1×45s", mins: 3 }]},
     { name: "Main", exercises: [{ name: "KB swings", reps: "2 × 20", trackWeight: true, mins: 4 }, { name: "Turkish get-up (left)", reps: "1 rep", trackWeight: true, isConditionalTGU: true, mins: 3 }, { name: "Turkish get-up (right)", reps: "1 rep", trackWeight: true, isConditionalTGU: true, mins: 3 }, { name: "Parallette dips", reps: "2 × 8", mins: 3 }, { name: "Punch bag", reps: "5 min", mins: 5 }]},
-    { name: "Core", exercises: [{ name: "Leg raises", reps: "2 × 10", mins: 3 }, { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 }, { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 }, { name: "Russian twists (KB)", reps: "2 × 10 each", trackWeight: true, mins: 3 }], protected: true },
+    { name: "Core", exercises: [{ name: "Leg raises", reps: "2 × 10", mins: 3 }, { name: "Hanging leg raises", reps: "2 × 8", mins: 3 }, { name: "Side plank (left)", reps: "1 × 30 sec", mins: 1 }, { name: "Side plank (right)", reps: "1 × 30 sec", mins: 1 }, { name: "Russian twists (KB)", reps: "2 × 10 each", trackWeight: true, mins: 3 }], protected: true },
     { name: "Stretch", exercises: [{ name: "Figure 4 stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Figure 4 stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (left)", reps: "1 × 60 sec", mins: 1 }, { name: "Side-lying quad stretch (right)", reps: "1 × 60 sec", mins: 1 }, { name: "Active hang", reps: "1 × max", trackTime: true, mins: 2 }, { name: "Passive hang", reps: "1 × 20 sec", mins: 1 }]}
   ]},
   homeLight: { title: "🏠 HOME Light", time: "~95 min", timePhase1: "~50 min", timePhase2: "~85 min", sections: [
@@ -245,7 +248,7 @@ const getDailyNonNegotiables = (phase) => dailyNonNegotiablesBase.map(d => ({ na
 const VideoLink = ({ name }) => { const url = videoLinks[name]; return url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-500 ml-1" onClick={(e) => e.stopPropagation()}>📹</a> : null; };
 const AppBadge = () => <span className="text-green-600 text-xs ml-1">📱</span>;
 
-const Stopwatch = ({ dayData, setDayData, expectedMins }) => {
+const Stopwatch = ({ dayData, setDayData, expectedMins, isSticky, setIsSticky }) => {
   const [displayTime, setDisplayTime] = useState(0);
   const intervalRef = useRef(null);
   const isRunning = dayData.stopwatchRunning || false;
@@ -268,10 +271,11 @@ const Stopwatch = ({ dayData, setDayData, expectedMins }) => {
   const diffColor = diff <= 0 ? 'text-green-400' : diff <= 10 ? 'text-yellow-400' : 'text-red-400';
   
   return (
-    <div className="mb-3 bg-gray-800 text-white rounded-lg p-3">
+    <div className={`mb-3 bg-gray-800 text-white rounded-lg p-3 ${isSticky ? 'sticky top-0 z-20 shadow-lg' : ''}`}>
       <div className="flex items-center justify-between">
         <div><div className="text-3xl font-mono font-bold">{formatTime(displayTime)}</div><div className="text-xs text-gray-400">Expected: ~{expectedMins}m • <span className={diffColor}>{diffText}</span></div></div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button onClick={() => setIsSticky(!isSticky)} className={`px-2 py-1 rounded text-xs ${isSticky ? 'bg-blue-600' : 'bg-gray-600'}`} title="Pin stopwatch">{isSticky ? '📌' : '📍'}</button>
           {!isRunning ? <button onClick={start} className="px-4 py-2 bg-green-600 rounded-lg font-bold text-xl">▶</button> : <button onClick={pause} className="px-4 py-2 bg-yellow-600 rounded-lg font-bold text-xl">⏸</button>}
           <button onClick={reset} className="px-3 py-2 bg-gray-600 rounded-lg text-sm">↺</button>
         </div>
@@ -291,17 +295,43 @@ const BugsSection = ({ cycleDay, bugs, setBugs }) => {
   const deleteBug = (id) => setBugs({ ...bugs, [cycleDay]: cycleBugs.filter(b => b.id !== id) });
   
   return (
-    <div className="mb-3 border-2 border-orange-200 rounded-lg overflow-hidden">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-orange-100 p-2 font-bold text-orange-800 text-sm flex justify-between items-center">
+    <div className="mb-3 border-2 border-red-200 rounded-lg overflow-hidden">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-red-100 p-2 font-bold text-red-800 text-sm flex justify-between items-center">
         <span>🐛 Bugs Day {cycleDay} ({openBugs.length} open)</span><span>{isOpen ? '▼' : '▶'}</span>
       </button>
       {isOpen && (
         <div className="p-2 bg-white">
-          <div className="flex gap-2 mb-2"><input type="text" value={newBug} onChange={(e) => setNewBug(e.target.value)} placeholder="Describe bug..." className="flex-1 px-2 py-1 text-sm border rounded" onKeyPress={(e) => e.key === 'Enter' && addBug()} /><button onClick={addBug} className="px-3 py-1 bg-orange-500 text-white rounded text-sm">Add</button></div>
-          {openBugs.length > 0 && <div className="mb-2"><div className="text-xs text-gray-500 mb-1">Open:</div>{openBugs.map(bug => (<div key={bug.id} className="flex items-center gap-2 p-2 bg-orange-50 rounded mb-1"><input type="checkbox" checked={false} onChange={() => toggleBug(bug.id)} className="w-4 h-4" /><span className="flex-1 text-sm">{bug.text}</span></div>))}</div>}
+          <div className="flex gap-2 mb-2"><input type="text" value={newBug} onChange={(e) => setNewBug(e.target.value)} placeholder="Describe bug..." className="flex-1 px-2 py-1 text-sm border rounded" onKeyPress={(e) => e.key === 'Enter' && addBug()} /><button onClick={addBug} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Add</button></div>
+          {openBugs.length > 0 && <div className="mb-2"><div className="text-xs text-gray-500 mb-1">Open:</div>{openBugs.map(bug => (<div key={bug.id} className="flex items-center gap-2 p-2 bg-red-50 rounded mb-1"><input type="checkbox" checked={false} onChange={() => toggleBug(bug.id)} className="w-4 h-4" /><span className="flex-1 text-sm">{bug.text}</span></div>))}</div>}
           {fixedBugs.length > 0 && <div><div className="text-xs text-gray-500 mb-1">Fixed:</div>{fixedBugs.map(bug => (<div key={bug.id} className="flex items-center gap-2 p-2 bg-green-50 rounded mb-1"><input type="checkbox" checked={true} onChange={() => toggleBug(bug.id)} className="w-4 h-4" /><span className="flex-1 text-sm line-through text-gray-400">{bug.text}</span><button onClick={() => deleteBug(bug.id)} className="text-red-400 text-xs">✕</button></div>))}</div>}
-          {cycleBugs.length === 0 && <div className="text-xs text-gray-400 text-center py-2">No bugs for this day.</div>}
-          <div className="text-xs text-gray-400 mt-2 text-center">Bugs cycle every 14 days.</div>
+          {cycleBugs.length === 0 && <div className="text-xs text-gray-400 text-center py-2">No bugs logged.</div>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const UpdatesSection = ({ cycleDay, updates, setUpdates }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [newUpdate, setNewUpdate] = useState('');
+  const cycleUpdates = updates[cycleDay] || [];
+  const openUpdates = cycleUpdates.filter(u => !u.done);
+  const doneUpdates = cycleUpdates.filter(u => u.done);
+  const addUpdate = () => { if (!newUpdate.trim()) return; setUpdates({ ...updates, [cycleDay]: [...cycleUpdates, { id: Date.now(), text: newUpdate.trim(), done: false }] }); setNewUpdate(''); };
+  const toggleUpdate = (id) => setUpdates({ ...updates, [cycleDay]: cycleUpdates.map(u => u.id === id ? { ...u, done: !u.done } : u) });
+  const deleteUpdate = (id) => setUpdates({ ...updates, [cycleDay]: cycleUpdates.filter(u => u.id !== id) });
+  
+  return (
+    <div className="mb-3 border-2 border-purple-200 rounded-lg overflow-hidden">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-purple-100 p-2 font-bold text-purple-800 text-sm flex justify-between items-center">
+        <span>📝 Updates Day {cycleDay} ({openUpdates.length} pending)</span><span>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && (
+        <div className="p-2 bg-white">
+          <div className="flex gap-2 mb-2"><input type="text" value={newUpdate} onChange={(e) => setNewUpdate(e.target.value)} placeholder="Describe update..." className="flex-1 px-2 py-1 text-sm border rounded" onKeyPress={(e) => e.key === 'Enter' && addUpdate()} /><button onClick={addUpdate} className="px-3 py-1 bg-purple-500 text-white rounded text-sm">Add</button></div>
+          {openUpdates.length > 0 && <div className="mb-2"><div className="text-xs text-gray-500 mb-1">Pending:</div>{openUpdates.map(update => (<div key={update.id} className="flex items-center gap-2 p-2 bg-purple-50 rounded mb-1"><input type="checkbox" checked={false} onChange={() => toggleUpdate(update.id)} className="w-4 h-4" /><span className="flex-1 text-sm">{update.text}</span></div>))}</div>}
+          {doneUpdates.length > 0 && <div><div className="text-xs text-gray-500 mb-1">Done:</div>{doneUpdates.map(update => (<div key={update.id} className="flex items-center gap-2 p-2 bg-green-50 rounded mb-1"><input type="checkbox" checked={true} onChange={() => toggleUpdate(update.id)} className="w-4 h-4" /><span className="flex-1 text-sm line-through text-gray-400">{update.text}</span><button onClick={() => deleteUpdate(update.id)} className="text-red-400 text-xs">✕</button></div>))}</div>}
+          {cycleUpdates.length === 0 && <div className="text-xs text-gray-400 text-center py-2">No updates logged.</div>}
         </div>
       )}
     </div>
@@ -329,6 +359,8 @@ const Section = ({ section, sectionIndex, dayData, setDayData, cycleDay, cardioM
     }
     return ex;
   });
+  // Apply phase modification to isometrics AFTER A/B split
+  exercises = exercises.map(ex => modifyExerciseForPhase(ex, phase));
   if (exercises.length === 0 && !section.isCalisthenics) return null;
   const checks = dayData.checks || {}, weights = dayData.weights || {};
   const allChecked = exercises.length > 0 && exercises.every((_, i) => checks[`${sectionIndex}-${i}`]);
@@ -359,6 +391,8 @@ function TrainingApp() {
   const [selectedDate, setSelectedDate] = useState(() => { const t = new Date(); return t < PROGRAM_START ? formatDate(PROGRAM_START) : formatDate(t); });
   const [allData, setAllData] = useState({});
   const [bugs, setBugs] = useState({});
+  const [updates, setUpdates] = useState({});
+  const [isSticky, setIsSticky] = useState(false);
   const [view, setView] = useState('today');
   const [loading, setLoading] = useState(true);
 
@@ -376,8 +410,8 @@ function TrainingApp() {
     return match ? parseInt(match[1]) : 60;
   };
 
-  useEffect(() => { try { const s = localStorage.getItem(STORAGE_KEY); if (s) setAllData(JSON.parse(s)); const b = localStorage.getItem(BUGS_KEY); if (b) setBugs(JSON.parse(b)); } catch (e) {} setLoading(false); }, []);
-  useEffect(() => { if (!loading) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); localStorage.setItem(BUGS_KEY, JSON.stringify(bugs)); } catch (e) {} } }, [allData, bugs, loading]);
+  useEffect(() => { try { const s = localStorage.getItem(STORAGE_KEY); if (s) setAllData(JSON.parse(s)); const b = localStorage.getItem(BUGS_KEY); if (b) setBugs(JSON.parse(b)); const u = localStorage.getItem(UPDATES_KEY); if (u) setUpdates(JSON.parse(u)); } catch (e) {} setLoading(false); }, []);
+  useEffect(() => { if (!loading) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); localStorage.setItem(BUGS_KEY, JSON.stringify(bugs)); localStorage.setItem(UPDATES_KEY, JSON.stringify(updates)); } catch (e) {} } }, [allData, bugs, updates, loading]);
 
   const setDayData = (d) => setAllData({ ...allData, [selectedDate]: d });
   const navigateDay = (delta) => { const d = new Date(currentDate); d.setDate(d.getDate() + delta); if (d >= PROGRAM_START && d <= PROGRAM_END) setSelectedDate(formatDate(d)); };
@@ -429,8 +463,9 @@ function TrainingApp() {
             <div><h2 className="font-bold">{sessionData.title}</h2><p className="text-xs text-gray-500">{getSessionTime()}</p><p className="text-xs text-purple-600">Cal Day {cycleDay}: {calisthenicsRotation[cycleDay]?.focus}</p></div>
             <button onClick={resetDay} className="p-2 text-gray-400">🔄</button>
           </div>
-          <Stopwatch dayData={dayData} setDayData={setDayData} expectedMins={getExpectedMins()} />
+          <Stopwatch dayData={dayData} setDayData={setDayData} expectedMins={getExpectedMins()} isSticky={isSticky} setIsSticky={setIsSticky} />
           <BugsSection cycleDay={cycleDay} bugs={bugs} setBugs={setBugs} />
+          <UpdatesSection cycleDay={cycleDay} updates={updates} setUpdates={setUpdates} />
           <div className="mb-3 p-2 bg-gray-50 rounded text-xs flex flex-wrap gap-3"><span>📹 = YouTube</span><span>📱 = In app</span><span className="text-blue-600">✓ full = Protected</span></div>
           <div className="mb-3 border-2 border-blue-200 rounded-lg overflow-hidden">
             <div className="bg-blue-100 p-2 font-bold text-blue-800 text-sm">📌 Daily Non-Negotiables</div>
@@ -480,7 +515,7 @@ function TrainingApp() {
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🐛 Bug Tracking</h3><p className="text-xs text-gray-600">Bugs linked to cycle day (1-14). Same bugs appear 2 weeks later. Mark fixed, then delete.</p></div>
           <div className="bg-white rounded-lg p-3 border"><h3 className="font-bold text-sm mb-2">🎯 2RIR Rule</h3><p className="text-xs text-gray-600">Stop when you could do 2 more reps.</p></div>
           <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200"><h3 className="font-bold text-sm mb-2 text-yellow-800">Remember</h3><ul className="text-xs text-yellow-700 space-y-1"><li>✓ Good enough for now</li><li>✓ Stay the course</li><li>✓ Imperfection is not the enemy, distraction is</li></ul></div>
-          <div className="text-center text-xs text-gray-400 mt-4">v16 • Jan 26, 2026</div>
+          <div className="text-center text-xs text-gray-400 mt-4">v18 • Jan 26, 2026</div>
         </div>
       )}
     </div>
